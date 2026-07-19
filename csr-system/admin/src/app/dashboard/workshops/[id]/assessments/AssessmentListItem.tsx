@@ -1,0 +1,85 @@
+"use client";
+
+import { useTransition } from "react";
+import { setAssessmentEnabledAction, deleteAssessmentAction } from "@/app/actions/assessments";
+import type { Assessment, AssessmentAttempt } from "@/lib/types";
+
+export function AssessmentListItem({
+  projectId,
+  workshopId,
+  assessment,
+  attempts,
+  batchName,
+}: {
+  projectId: string;
+  workshopId: string;
+  assessment: Assessment;
+  attempts: AssessmentAttempt[];
+  batchName?: string;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [deletePending, startDelete] = useTransition();
+
+  const submitted = attempts.filter((a) => a.status !== "in_progress");
+  const passed = submitted.filter((a) => a.result === "pass").length;
+
+  return (
+    <li className="py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-900">
+            {assessment.title}{" "}
+            <span className="font-normal text-slate-400">— {assessment.batchId ? `Batch: ${batchName ?? "unknown"}` : "whole workshop"}</span>
+          </p>
+          <p className="text-xs text-slate-500">
+            {assessment.questions.length} question{assessment.questions.length === 1 ? "" : "s"} · {assessment.totalMarks} marks · pass at{" "}
+            {assessment.passingPercent}% · {assessment.durationMinutes} min · max {assessment.maxAttempts} attempt{assessment.maxAttempts === 1 ? "" : "s"}
+          </p>
+          {submitted.length > 0 && (
+            <p className="mt-1 text-xs text-slate-500">
+              {submitted.length} attempt{submitted.length === 1 ? "" : "s"} submitted · {passed} passed
+            </p>
+          )}
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => startTransition(() => setAssessmentEnabledAction(projectId, workshopId, assessment._id, !assessment.isEnabled))}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
+              assessment.isEnabled ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {pending ? "Updating…" : assessment.isEnabled ? "Enabled — click to disable" : "Disabled — click to enable"}
+          </button>
+          <button
+            type="button"
+            disabled={deletePending}
+            onClick={() => {
+              if (window.confirm(`Delete assessment "${assessment.title}"?`)) {
+                startDelete(() => deleteAssessmentAction(projectId, workshopId, assessment._id));
+              }
+            }}
+            className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+          >
+            {deletePending ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+
+      {submitted.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {submitted.map((a) => (
+            <span
+              key={a._id}
+              className={`rounded-full px-2 py-0.5 text-xs ${a.result === "pass" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
+            >
+              Attempt {a.attemptNumber}: {a.percentage}% ({a.result})
+            </span>
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}

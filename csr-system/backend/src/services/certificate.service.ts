@@ -1,0 +1,311 @@
+import crypto from "node:crypto";
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { HydratedDocument } from "mongoose";
+import { Certificate, type CertificateDoc } from "../models/Certificate";
+import { CertificateTemplate, type CertificateTemplateDoc } from "../models/CertificateTemplate";
+import { Enrollment, type EnrollmentDoc } from "../models/Enrollment";
+import { Batch } from "../models/Batch";
+import { Workshop } from "../models/Workshop";
+import { Assessment } from "../models/Assessment";
+import { FeedbackForm } from "../models/FeedbackForm";
+import { User } from "../models/User";
+import { Project } from "../models/Project";
+import { getNextSequence } from "../models/Counter";
+import { ApiError } from "../utils/ApiError";
+import { sendNotification } from "./notification.service";
+import { sendCertificateIssuedEmail, sendCertificateRevokedEmail } from "./email.service";
+import { CERTIFICATES_DIR, resolveUploadsPath } from "../middleware/upload";
+import { renderCertificatePdf, mergeWithDefaults } from "./certificatePdf.service";
+import { env } from "../config/env";
+
+interface GateCheck {
+  attendance: { required: number; actual: number; met: boolean };
+  assessment: { required: boolean; applicable: boolean; met: boolean };
+  feedback: { required: boolean; applicable: boolean; met: boolean };
+}
+
+async function evaluateGates(projectId: string, enrollment: { workshopId: unknown; batchId: unknown; attendancePercent: number; assessmentStatus: string; feedbackSubmitted: boolean }): Promise<GateCheck> {
+  const workshop = await Workshop.findOne({ _id: enrollment.workshopId, projectId });
+  if (!workshop) throw ApiError.notFound("Workshop not found for this enrollment");
+
+  const settings = workshop.certificateSettings ?? { minAttendancePercent: 80, requireAssessmentPass: true, requireFeedback: true };
+
+  const assessmentExists = await Assessment.exists({ projectId, workshopId: enrollment.workshopId });
+  const feedbackExists = await FeedbackForm.exists({ projectId, workshopId: enrollment.workshopId });
+
+  return {
+    attendance: {
+      required: settings.minAttendancePercent,
+      actual: enrollment.attendancePercent,
+      met: enrollment.attendancePercent >= settings.minAttendancePercent,
+    },
+    assessment: {
+      required: settings.requireAssessmentPass,
+      applicable: Boolean(assessmentExists),
+      met: !settings.requireAssessmentPass || !assessmentExists || enrollment.assessmentStatus === "passed",
+    },
+    feedback: {
+      required: settings.requireFeedback,
+      applicable: Boolean(feedbackExists),
+      met: !settings.requireFeedback || !feedbackExists || enrollment.feedbackSubmitted === true,
+    },
+  };
+}
+
+function gatesMet(gates: GateCheck): boolean {
+  return gates.attendance.met && gates.assessment.met && gates.feedback.met;
+}
+
+export async function checkEligibility(projectId: string, enrollmentId: string) {
+  const enrollment = await Enrollment.findOne({ _id: enrollmentId, projectId });
+  if (!enrollment) throw ApiError.notFound("Enrollment not found");
+  const gates = await evaluateGates(projectId, enrollment);
+  return { eligible: gatesMet(gates), gates };
+}
+
+/**
+ * Core single-enrollment issuance: gate check (unless precomputed), certificate number/verification
+ * code, PDF render + write to disk, Enrollment update, and the issued-certificate email. Shared by
+ * both the single-issue endpoint and the batch bulk-generate loop so there is exactly one place that
+ * knows how to actually mint a certificate.
+ */
+async function issueCertificateCore(input: {
+  projectId: string;
+  enrollment: HydratedDocument<EnrollmentDoc>;
+  template: HydratedDocument<CertificateTemplateDoc>;
+  issuedByUserId: string;
+  origin: string;
+  gates?: GateCheck;
+}): Promise<{ certificate: HydratedDocument<CertificateDoc>; emailResult: import("./email.service").SendResult }> {
+  const { projectId, enrollment, template, issuedByUserId, origin } = input;
+
+  const gates = input.gates ?? (await evaluateGates(projectId, enrollment));
+  if (!gatesMet(gates)) {
+    throw ApiError.badRequest("Certificate gates not satisfied", gates);
+  }
+
+  const [candidate, workshop, batch] = await Promise.all([
+    User.findById(enrollment.candidateUserId),
+    Workshop.findById(enrollment.workshopId),
+    Batch.findById(enrollment.batchId),
+  ]);
+
+  const seq = await getNextSequence(`certificate_seq_${projectId}`);
+  const certificateNumber = `CERT-${String(seq).padStart(6, "0")}`;
+  const verificationCode = crypto.randomBytes(8).toString("hex");
+  const verificationUrl = `${env.WEBSITE_URL}/verify/${verificationCode}`;
+
+  let fileUrl: string | null = null;
+  let pdfBuffer: Buffer | undefined;
+  if (template.backgroundImageUrl) {
+    try {
+      pdfBuffer = await renderCertificatePdf({
+        backgroundImageAbsolutePath: resolveUploadsPath(template.backgroundImageUrl),
+        layoutConfig: mergeWithDefaults(template.layoutConfig as Record<string, unknown> | null),
+        certificateNumber,
+        participantName: candidate?.fullName ?? "Participant",
+        location: batch?.venue?.city || batch?.venue?.name || "",
+        issueDate: new Date(),
+        verificationUrl,
+      });
+      const filename = `${crypto.randomUUID()}.pdf`;
+      await fs.writeFile(path.join(CERTIFICATES_DIR, filename), pdfBuffer);
+      fileUrl = `${origin}/uploads/certificates/${filename}`;
+    } catch (err) {
+      console.error("[certificate] PDF render failed, issuing without a file:", err);
+      pdfBuffer = undefined;
+    }
+  }
+
+  const certificate = await Certificate.create({
+    projectId,
+    enrollmentId: enrollment._id,
+    candidateUserId: enrollment.candidateUserId,
+    workshopId: enrollment.workshopId,
+    batchId: enrollment.batchId,
+    certificateNumber,
+    templateId: template._id,
+    verificationCode,
+    issueDate: new Date(),
+    fileUrl,
+    status: "issued",
+    createdBy: issuedByUserId,
+  });
+
+  await Enrollment.updateOne({ _id: enrollment.id }, { $set: { certificateId: certificate._id, status: "certified" } });
+
+  let emailResult: import("./email.service").SendResult = { delivered: false, reason: "No candidate email on file" };
+  if (candidate) {
+    emailResult = await sendCertificateIssuedEmail({
+      to: candidate.email,
+      fullName: candidate.fullName,
+      workshopTitle: workshop?.title ?? "your training",
+      certificateNumber,
+      verificationCode,
+      verificationUrl,
+      pdfBuffer,
+    });
+
+    await sendNotification({
+      projectId,
+      recipientUserId: candidate.id,
+      channel: "email",
+      subject: `Your certificate for ${workshop?.title ?? "your training"} is ready`,
+      body: emailResult.delivered ? `Certificate email sent to ${candidate.email}.` : `Email delivery skipped (${emailResult.reason}).`,
+      relatedEntity: { type: "certificate", id: certificate.id },
+    });
+  }
+
+  return { certificate, emailResult };
+}
+
+export async function issueCertificate(input: { projectId: string; enrollmentId: string; templateId: string; issuedByUserId: string; origin: string }) {
+  const enrollment = await Enrollment.findOne({ _id: input.enrollmentId, projectId: input.projectId });
+  if (!enrollment) throw ApiError.notFound("Enrollment not found");
+
+  const template = await CertificateTemplate.findOne({ _id: input.templateId, projectId: input.projectId });
+  if (!template) throw ApiError.notFound("Certificate template not found");
+
+  const { certificate } = await issueCertificateCore({
+    projectId: input.projectId,
+    enrollment,
+    template,
+    issuedByUserId: input.issuedByUserId,
+    origin: input.origin,
+  });
+  return certificate;
+}
+
+export interface BatchGenerateResult {
+  totalEnrollments: number;
+  issued: { enrollmentId: string; candidateName: string; certificateId: string; certificateNumber: string }[];
+  skippedAlreadyCertified: { enrollmentId: string; candidateName: string }[];
+  skippedIneligible: { enrollmentId: string; candidateName: string; gates: GateCheck }[];
+  failed: { enrollmentId: string; candidateName: string; error: string }[];
+}
+
+/** Issues certificates for every eligible, not-yet-certified enrollment in a batch. One candidate's
+ * failure is caught and reported, never aborts the rest of the batch. */
+export async function generateCertificatesForBatch(input: {
+  projectId: string;
+  workshopId: string;
+  batchId: string;
+  templateId: string;
+  issuedByUserId: string;
+  origin: string;
+}): Promise<BatchGenerateResult> {
+  const template = await CertificateTemplate.findOne({ _id: input.templateId, projectId: input.projectId });
+  if (!template) throw ApiError.notFound("Certificate template not found");
+
+  const enrollments = await Enrollment.find({ projectId: input.projectId, workshopId: input.workshopId, batchId: input.batchId });
+
+  const result: BatchGenerateResult = { totalEnrollments: enrollments.length, issued: [], skippedAlreadyCertified: [], skippedIneligible: [], failed: [] };
+
+  for (const enrollment of enrollments) {
+    const candidate = await User.findById(enrollment.candidateUserId);
+    const candidateName = candidate?.fullName ?? "Unknown candidate";
+
+    if (enrollment.status === "certified" || enrollment.certificateId) {
+      result.skippedAlreadyCertified.push({ enrollmentId: enrollment.id, candidateName });
+      continue;
+    }
+
+    try {
+      const gates = await evaluateGates(input.projectId, enrollment);
+      if (!gatesMet(gates)) {
+        result.skippedIneligible.push({ enrollmentId: enrollment.id, candidateName, gates });
+        continue;
+      }
+
+      const { certificate } = await issueCertificateCore({
+        projectId: input.projectId,
+        enrollment,
+        template,
+        issuedByUserId: input.issuedByUserId,
+        origin: input.origin,
+        gates,
+      });
+      result.issued.push({ enrollmentId: enrollment.id, candidateName, certificateId: certificate.id, certificateNumber: certificate.certificateNumber });
+    } catch (err) {
+      result.failed.push({ enrollmentId: enrollment.id, candidateName, error: err instanceof Error ? err.message : "Unknown error" });
+    }
+  }
+
+  return result;
+}
+
+export async function revokeCertificate(input: { projectId: string; certificateId: string; reason: string; revokedBy: string }) {
+  const certificate = await Certificate.findOne({ _id: input.certificateId, projectId: input.projectId });
+  if (!certificate) throw ApiError.notFound("Certificate not found");
+  if (certificate.status !== "issued") throw ApiError.conflict("Certificate is not currently issued");
+
+  certificate.status = "revoked";
+  certificate.revokedReason = input.reason;
+  certificate.revokedAt = new Date();
+  certificate.set("revokedBy", input.revokedBy);
+  await certificate.save();
+
+  await Enrollment.updateOne({ _id: certificate.enrollmentId }, { $set: { status: "completed" } });
+
+  const [candidate, workshop] = await Promise.all([
+    User.findById(certificate.candidateUserId),
+    Workshop.findById(certificate.workshopId),
+  ]);
+
+  if (candidate) {
+    const emailResult = await sendCertificateRevokedEmail({
+      to: candidate.email,
+      fullName: candidate.fullName,
+      workshopTitle: workshop?.title ?? "your training",
+      certificateNumber: certificate.certificateNumber,
+      reason: input.reason,
+    });
+
+    await sendNotification({
+      projectId: input.projectId,
+      recipientUserId: candidate.id,
+      channel: "email",
+      subject: `Your certificate for ${workshop?.title ?? "your training"} was revoked`,
+      body: emailResult.delivered ? `Revocation email sent to ${candidate.email}.` : `Email delivery skipped (${emailResult.reason}).`,
+      relatedEntity: { type: "certificate", id: certificate.id },
+    });
+  }
+
+  return certificate;
+}
+
+export async function listCertificates(projectId: string, filters: { workshopId?: string; candidateUserId?: string; status?: string }) {
+  const query: Record<string, unknown> = { projectId };
+  if (filters.workshopId) query.workshopId = filters.workshopId;
+  if (filters.candidateUserId) query.candidateUserId = filters.candidateUserId;
+  if (filters.status) query.status = filters.status;
+  return Certificate.find(query).sort({ issueDate: -1 });
+}
+
+export async function getOwnCertificates(candidateUserId: string) {
+  return Certificate.find({ candidateUserId }).sort({ issueDate: -1 });
+}
+
+/** Public verification — no auth, no tenant context (verificationCode is globally unique). */
+export async function verifyByCode(code: string) {
+  const certificate = await Certificate.findOne({ verificationCode: code });
+  if (!certificate) throw ApiError.notFound("No certificate matches this verification code");
+
+  const [candidate, workshop, project, batch] = await Promise.all([
+    User.findById(certificate.candidateUserId),
+    Workshop.findById(certificate.workshopId),
+    Project.findById(certificate.get("projectId")),
+    Batch.findById(certificate.batchId),
+  ]);
+
+  return {
+    certificateNumber: certificate.certificateNumber,
+    status: certificate.status,
+    issueDate: certificate.issueDate,
+    candidateName: candidate?.fullName ?? "Unknown",
+    workshopTitle: workshop?.title ?? "Unknown",
+    batchName: batch?.name ?? null,
+    projectName: project?.name ?? "Unknown",
+  };
+}
