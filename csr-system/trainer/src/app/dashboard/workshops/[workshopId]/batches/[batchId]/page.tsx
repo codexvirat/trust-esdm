@@ -69,7 +69,7 @@ export default async function TrainerBatchDetailPage({ params }: { params: Promi
         <Link href="/dashboard" className="text-sm text-slate-500 hover:text-slate-800">
           ← My batches
         </Link>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold text-slate-900">
             {workshop.title} <span className="text-slate-400">— {batch.name} ({batch.code})</span>
           </h1>
@@ -81,7 +81,7 @@ export default async function TrainerBatchDetailPage({ params }: { params: Promi
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-base font-semibold text-slate-900">Attendance sessions</h2>
           <CreateSessionForm workshopId={workshopId} batchId={batchId} />
         </div>

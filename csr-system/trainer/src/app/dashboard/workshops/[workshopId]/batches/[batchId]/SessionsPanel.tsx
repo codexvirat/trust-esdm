@@ -62,7 +62,7 @@ function SessionRow({
 
   return (
     <li className="py-3">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium text-slate-900">{session.sessionLabel}</p>
           <p className="text-xs text-slate-500">
