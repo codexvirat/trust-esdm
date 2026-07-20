@@ -23,6 +23,11 @@ const organisationSchema = new Schema({
   pincode: String,
   gstin: String,
   pan: String,
+  // Only one of these is meaningful at a time, depending on `type`: cin for
+  // type "company" (Corporate Identification Number), udyamNumber for type
+  // "msme" (Udyam Registration Number).
+  cin: String,
+  udyamNumber: String,
   shortCode: String,
   industry: String,
   employeeCount: Number,

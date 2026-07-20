@@ -19,6 +19,8 @@ export interface Organisation {
   pincode?: string;
   gstin?: string;
   pan?: string;
+  cin?: string;
+  udyamNumber?: string;
   shortCode?: string;
   industry?: string;
   employeeCount?: number;

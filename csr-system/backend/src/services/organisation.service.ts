@@ -23,9 +23,17 @@ export async function getOrganisationById(projectId: string, id: string) {
 }
 
 export async function updateOrganisation(projectId: string, id: string, updates: Record<string, unknown>, updatedBy: string) {
+  const existing = await Organisation.findOne({ _id: id, projectId });
+  if (!existing) throw ApiError.notFound("Organisation not found");
+
+  const nextEmail = "email" in updates ? updates.email : existing.email;
+  const nextPhone = "phone" in updates ? updates.phone : existing.phone;
+  if (!nextEmail && !nextPhone) {
+    throw ApiError.badRequest("The company must keep at least an email or a phone number");
+  }
+
   const organisation = await Organisation.findOneAndUpdate({ _id: id, projectId }, { $set: { ...updates, updatedBy } }, { new: true });
-  if (!organisation) throw ApiError.notFound("Organisation not found");
-  return organisation;
+  return organisation!;
 }
 
 export async function deleteOrganisation(projectId: string, id: string, deletedBy: string) {
