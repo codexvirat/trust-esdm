@@ -9,6 +9,19 @@ const venueSnapshotSchema = new Schema(
 
 const batchPhotoSchema = new Schema({ url: { type: String, required: true } });
 
+// Day-wise curriculum plan for a batch: what runs on which date, and who's
+// responsible for it (a staff account — see assignedToUserId's role check in
+// batch.service.ts, kept in the service so it stays a single source of truth
+// alongside the rest of the assignment validation).
+const dayPlanEntrySchema = new Schema(
+  {
+    date: { type: Date, required: true },
+    title: { type: String, required: true, trim: true },
+    assignedToUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+  },
+  { timestamps: true },
+);
+
 const batchSchema = new Schema({
   workshopId: { type: Schema.Types.ObjectId, ref: "Workshop", required: true, index: true },
   code: { type: String, required: true, trim: true },
@@ -21,6 +34,7 @@ const batchSchema = new Schema({
   enrolledCount: { type: Number, default: 0 },
   status: { type: String, enum: BATCH_STATUSES, default: "scheduled", index: true },
   photos: { type: [batchPhotoSchema], default: [] },
+  dayPlan: { type: [dayPlanEntrySchema], default: [] },
 });
 
 applyBasePlugin(batchSchema, { tenant: true });

@@ -20,6 +20,7 @@ export const PERMISSIONS = {
   WORKSHOP_DELETE: "WORKSHOP_DELETE",
   WORKSHOP_VIEW: "WORKSHOP_VIEW",
   WORKSHOP_ASSIGN_TRAINER: "WORKSHOP_ASSIGN_TRAINER",
+  WORKSHOP_DAY_PLAN_MANAGE: "WORKSHOP_DAY_PLAN_MANAGE",
 
   REGISTRATION_VIEW: "REGISTRATION_VIEW",
   REGISTRATION_APPROVE: "REGISTRATION_APPROVE",
@@ -77,6 +78,7 @@ export const PERMISSION_CATALOG: { code: PermissionCode; module: string; descrip
   { code: PERMISSIONS.WORKSHOP_DELETE, module: "workshops", description: "Delete workshops" },
   { code: PERMISSIONS.WORKSHOP_VIEW, module: "workshops", description: "View workshops" },
   { code: PERMISSIONS.WORKSHOP_ASSIGN_TRAINER, module: "workshops", description: "Assign trainers to batches" },
+  { code: PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE, module: "workshops", description: "Create/edit a batch's day-wise plan and assign staff to it" },
 
   { code: PERMISSIONS.REGISTRATION_VIEW, module: "registrations", description: "View public registrations" },
   { code: PERMISSIONS.REGISTRATION_APPROVE, module: "registrations", description: "Approve a candidate registration" },
@@ -129,6 +131,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, PermissionCode[]> = {
     PERMISSIONS.WORKSHOP_DELETE,
     PERMISSIONS.WORKSHOP_VIEW,
     PERMISSIONS.WORKSHOP_ASSIGN_TRAINER,
+    PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE,
     PERMISSIONS.REGISTRATION_VIEW,
     PERMISSIONS.REGISTRATION_APPROVE,
     PERMISSIONS.REGISTRATION_REJECT,
@@ -164,6 +167,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<RoleCode, PermissionCode[]> = {
     PERMISSIONS.WORKSHOP_DELETE,
     PERMISSIONS.WORKSHOP_VIEW,
     PERMISSIONS.WORKSHOP_ASSIGN_TRAINER,
+    PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE,
     PERMISSIONS.REGISTRATION_VIEW,
     PERMISSIONS.REGISTRATION_APPROVE,
     PERMISSIONS.REGISTRATION_REJECT,

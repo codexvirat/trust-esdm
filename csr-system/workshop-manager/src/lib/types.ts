@@ -45,6 +45,13 @@ export interface BatchPhoto {
   url: string;
 }
 
+export interface DayPlanEntry {
+  _id: string;
+  date: string;
+  title: string;
+  assignedToUserId?: string | null;
+}
+
 export interface Batch {
   _id: string;
   workshopId: string;
@@ -56,6 +63,7 @@ export interface Batch {
   enrolledCount: number;
   venueId?: string | null;
   photos?: BatchPhoto[];
+  dayPlan?: DayPlanEntry[];
   status: BatchStatus;
 }
 

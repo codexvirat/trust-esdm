@@ -258,3 +258,39 @@ export async function removeBatchPhotoAction(workshopId: string, batchId: string
   await apiFetch(`/workshops/${workshopId}/batches/${batchId}/photos/${photoId}`, { method: "DELETE", accessToken });
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }
+
+export async function addDayPlanEntryAction(
+  workshopId: string,
+  batchId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { accessToken } = await requireManagerRole();
+
+  const date = String(formData.get("date") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const assignedToUserId = String(formData.get("assignedToUserId") ?? "").trim();
+
+  if (!date || !title) {
+    return { error: "Date and title are required." };
+  }
+
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/day-plan`, {
+      method: "POST",
+      accessToken,
+      body: { date, title, assignedToUserId: assignedToUserId || undefined },
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to add day-plan entry." };
+  }
+
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+  return {};
+}
+
+export async function removeDayPlanEntryAction(workshopId: string, batchId: string, entryId: string): Promise<void> {
+  const { accessToken } = await requireManagerRole();
+  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/day-plan/${entryId}`, { method: "DELETE", accessToken });
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+}

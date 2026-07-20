@@ -22,7 +22,10 @@ import { AssessmentAssignPanel } from "./AssessmentAssignPanel";
 import { FeedbackAssignPanel } from "./FeedbackAssignPanel";
 import { BatchResultsPanel } from "./BatchResultsPanel";
 import { BatchPhotosPanel } from "./BatchPhotosPanel";
+import { DayPlanPanel } from "./DayPlanPanel";
 import { GenerateCertificatesPanel } from "./GenerateCertificatesPanel";
+
+const DAY_PLAN_ASSIGNABLE_ROLES = new Set(["super_admin", "admin", "manager", "workshop_manager"]);
 
 export default async function BatchDetailPage({
   params,
@@ -45,8 +48,9 @@ export default async function BatchDetailPage({
   let templates: CertificateTemplate[];
   let assessments: Assessment[];
   let feedbackForms: FeedbackForm[];
+  let projectUsers: UserSummary[];
   try {
-    [batch, sessions, records, enrollments, candidates, templates, assessments, feedbackForms] = await Promise.all([
+    [batch, sessions, records, enrollments, candidates, templates, assessments, feedbackForms, projectUsers] = await Promise.all([
       apiFetch<Batch>(`/workshops/${workshopId}/batches/${batchId}?${orgQuery}`, { accessToken }),
       apiFetch<AttendanceSession[]>(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions?${orgQuery}`, { accessToken }),
       apiFetch<AttendanceRecord[]>(`/attendance/records?batchId=${batchId}&${orgQuery}`, { accessToken }),
@@ -55,6 +59,7 @@ export default async function BatchDetailPage({
       apiFetch<CertificateTemplate[]>(`/certificate-templates?${orgQuery}`, { accessToken }),
       apiFetch<Assessment[]>(`/workshops/${workshopId}/assessments?${orgQuery}`, { accessToken }),
       apiFetch<FeedbackForm[]>(`/workshops/${workshopId}/feedback-forms?${orgQuery}`, { accessToken }),
+      apiFetch<UserSummary[]>(`/users?${orgQuery}`, { accessToken }),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
@@ -62,6 +67,7 @@ export default async function BatchDetailPage({
   }
 
   const candidateById = new Map(candidates.map((c) => [c._id, c]));
+  const dayPlanStaff = projectUsers.filter((u) => DAY_PLAN_ASSIGNABLE_ROLES.has(u.roleCode));
 
   const eligibilities = await Promise.all(
     enrollments.map((e) => apiFetch<CertificateEligibility>(`/enrollments/${e._id}/certificate/eligibility?${orgQuery}`, { accessToken })),
@@ -99,6 +105,8 @@ export default async function BatchDetailPage({
       </div>
 
       <BatchPhotosPanel projectId={projectId} workshopId={workshopId} batchId={batchId} photos={batch.photos ?? []} />
+
+      <DayPlanPanel projectId={projectId} workshopId={workshopId} batchId={batchId} entries={batch.dayPlan ?? []} staff={dayPlanStaff} />
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-center justify-between">

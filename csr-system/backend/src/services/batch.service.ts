@@ -1,8 +1,19 @@
 import { Batch } from "../models/Batch";
 import { Workshop } from "../models/Workshop";
+import { User } from "../models/User";
 import { ApiError } from "../utils/ApiError";
 import { softDeleteById } from "../utils/softDelete";
 import { cascadeDeleteBatch } from "../utils/cascadeDelete";
+
+// Only staff roles that can be handed responsibility for a day's plan —
+// deliberately excludes trainer/candidate, who aren't among the "manager, org
+// admin, admin, or workshop manager" set this feature was built for.
+const DAY_PLAN_ASSIGNABLE_ROLES = ["super_admin", "admin", "manager", "workshop_manager"] as const;
+
+async function assertAssignableToDayPlan(projectId: string, assignedToUserId: string) {
+  const user = await User.findOne({ _id: assignedToUserId, projectId, roleCode: { $in: DAY_PLAN_ASSIGNABLE_ROLES } });
+  if (!user) throw ApiError.badRequest("assignedToUserId must be a Manager, Admin, Super Admin, or Workshop Manager in this project");
+}
 
 async function assertWorkshopExists(projectId: string, workshopId: string) {
   const workshop = await Workshop.findOne({ _id: workshopId, projectId });
@@ -132,6 +143,56 @@ export async function removeBatchPhoto(projectId: string, workshopId: string, ba
   const batch = await Batch.findOneAndUpdate(
     { _id: batchId, projectId, workshopId },
     { $pull: { photos: { _id: photoId } } },
+    { new: true },
+  );
+  if (!batch) throw ApiError.notFound("Batch not found");
+  return batch;
+}
+
+export async function addDayPlanEntry(
+  projectId: string,
+  workshopId: string,
+  batchId: string,
+  input: { date: Date; title: string; assignedToUserId?: string | null },
+) {
+  if (input.assignedToUserId) await assertAssignableToDayPlan(projectId, input.assignedToUserId);
+
+  const batch = await Batch.findOneAndUpdate(
+    { _id: batchId, projectId, workshopId },
+    { $push: { dayPlan: { date: input.date, title: input.title, assignedToUserId: input.assignedToUserId || null } } },
+    { new: true },
+  );
+  if (!batch) throw ApiError.notFound("Batch not found");
+  return batch;
+}
+
+export async function updateDayPlanEntry(
+  projectId: string,
+  workshopId: string,
+  batchId: string,
+  entryId: string,
+  updates: { date?: Date; title?: string; assignedToUserId?: string | null },
+) {
+  if (updates.assignedToUserId) await assertAssignableToDayPlan(projectId, updates.assignedToUserId);
+
+  const set: Record<string, unknown> = {};
+  if (updates.date !== undefined) set["dayPlan.$.date"] = updates.date;
+  if (updates.title !== undefined) set["dayPlan.$.title"] = updates.title;
+  if (updates.assignedToUserId !== undefined) set["dayPlan.$.assignedToUserId"] = updates.assignedToUserId || null;
+
+  const batch = await Batch.findOneAndUpdate(
+    { _id: batchId, projectId, workshopId, "dayPlan._id": entryId },
+    { $set: set },
+    { new: true },
+  );
+  if (!batch) throw ApiError.notFound("Batch or day-plan entry not found");
+  return batch;
+}
+
+export async function removeDayPlanEntry(projectId: string, workshopId: string, batchId: string, entryId: string) {
+  const batch = await Batch.findOneAndUpdate(
+    { _id: batchId, projectId, workshopId },
+    { $pull: { dayPlan: { _id: entryId } } },
     { new: true },
   );
   if (!batch) throw ApiError.notFound("Batch not found");

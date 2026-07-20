@@ -22,3 +22,19 @@ export const updateBatchSchema = z.object({
     status: z.enum(BATCH_STATUSES).optional(),
   }),
 });
+
+export const createDayPlanEntrySchema = z.object({
+  body: z.object({
+    date: z.coerce.date(),
+    title: z.string().min(1),
+    assignedToUserId: z.string().nullable().optional(),
+  }),
+});
+
+export const updateDayPlanEntrySchema = z.object({
+  body: z.object({
+    date: z.coerce.date().optional(),
+    title: z.string().min(1).optional(),
+    assignedToUserId: z.string().nullable().optional(),
+  }),
+});

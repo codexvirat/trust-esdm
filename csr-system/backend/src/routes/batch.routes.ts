@@ -5,7 +5,7 @@ import { requirePermission } from "../middleware/auth";
 import { requireWorkshopManagerAssignedToBatch } from "../middleware/workshopManagerScope";
 import { validate } from "../middleware/validate";
 import { uploadBatchPhoto } from "../middleware/upload";
-import { createBatchSchema, updateBatchSchema } from "../validators/batch.validators";
+import { createBatchSchema, updateBatchSchema, createDayPlanEntrySchema, updateDayPlanEntrySchema } from "../validators/batch.validators";
 import { generateCertificatesForBatchSchema } from "../validators/certificate.validators";
 import { PERMISSIONS } from "../types/permissions";
 import { trainerAssignmentRouter } from "./trainerAssignment.routes";
@@ -39,6 +39,27 @@ batchRouter.delete(
   requirePermission(PERMISSIONS.WORKSHOP_EDIT),
   requireWorkshopManagerAssignedToBatch,
   controller.removePhoto,
+);
+
+batchRouter.post(
+  "/:batchId/day-plan",
+  requirePermission(PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE),
+  requireWorkshopManagerAssignedToBatch,
+  validate(createDayPlanEntrySchema),
+  controller.addDayPlanEntry,
+);
+batchRouter.patch(
+  "/:batchId/day-plan/:entryId",
+  requirePermission(PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE),
+  requireWorkshopManagerAssignedToBatch,
+  validate(updateDayPlanEntrySchema),
+  controller.updateDayPlanEntry,
+);
+batchRouter.delete(
+  "/:batchId/day-plan/:entryId",
+  requirePermission(PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE),
+  requireWorkshopManagerAssignedToBatch,
+  controller.removeDayPlanEntry,
 );
 
 // A trainer assignment always belongs to one batch. A workshop manager may only

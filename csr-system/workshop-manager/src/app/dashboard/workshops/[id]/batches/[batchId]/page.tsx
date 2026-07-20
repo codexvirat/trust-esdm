@@ -9,6 +9,9 @@ import { SessionsPanel } from "./SessionsPanel";
 import { CandidateRow } from "./CandidateRow";
 import { BatchResultsPanel } from "./BatchResultsPanel";
 import { BatchPhotosPanel } from "./BatchPhotosPanel";
+import { DayPlanView } from "./DayPlanView";
+
+const DAY_PLAN_ASSIGNABLE_ROLES = new Set(["super_admin", "admin", "manager", "workshop_manager"]);
 
 export default async function BatchDetailPage({ params }: { params: Promise<{ id: string; batchId: string }> }) {
   const { id: workshopId, batchId } = await params;
@@ -20,14 +23,16 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
   let enrollments: Enrollment[];
   let candidates: UserSummary[];
   let assessments: Assessment[];
+  let projectUsers: UserSummary[];
   try {
-    [batch, sessions, records, enrollments, candidates, assessments] = await Promise.all([
+    [batch, sessions, records, enrollments, candidates, assessments, projectUsers] = await Promise.all([
       apiFetch<Batch>(`/workshops/${workshopId}/batches/${batchId}`, { accessToken }),
       apiFetch<AttendanceSession[]>(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions`, { accessToken }),
       apiFetch<AttendanceRecord[]>(`/attendance/records?batchId=${batchId}`, { accessToken }),
       apiFetch<Enrollment[]>(`/enrollments?batchId=${batchId}`, { accessToken }),
       apiFetch<UserSummary[]>("/users?roleCode=candidate", { accessToken }),
       apiFetch<Assessment[]>(`/workshops/${workshopId}/assessments`, { accessToken }),
+      apiFetch<UserSummary[]>("/users", { accessToken }),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
@@ -35,6 +40,7 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
   }
 
   const candidateById = new Map(candidates.map((c) => [c._id, c]));
+  const dayPlanStaff = projectUsers.filter((u) => DAY_PLAN_ASSIGNABLE_ROLES.has(u.roleCode));
   const enrolledCandidates = enrollments.map((e) => candidateById.get(e.candidateUserId)).filter((c): c is UserSummary => Boolean(c));
 
   const eligibilities = await Promise.all(
@@ -64,6 +70,8 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ id
       </div>
 
       <BatchPhotosPanel workshopId={workshopId} batchId={batchId} photos={batch.photos ?? []} />
+
+      <DayPlanView entries={batch.dayPlan ?? []} staff={dayPlanStaff} />
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-center justify-between">
