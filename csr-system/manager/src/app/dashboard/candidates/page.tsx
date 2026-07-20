@@ -39,9 +39,14 @@ export default async function CandidatesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Candidates</h1>
-        <p className="mt-1 text-sm text-slate-500">Everyone with a candidate account in your project.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900">Candidates</h1>
+          <p className="mt-1 text-sm text-slate-500">Everyone with a candidate account in your project.</p>
+        </div>
+        <Link href="/dashboard/candidates/by-batch" className="text-sm font-medium text-teal-700 hover:text-teal-900">
+          View by batch →
+        </Link>
       </div>
 
       <RegisterCandidateForm />
