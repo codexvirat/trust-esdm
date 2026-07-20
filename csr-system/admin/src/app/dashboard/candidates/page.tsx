@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api";
 import type { Batch, CandidateProfile, Enrollment, WorkshopSummary, Project, UserSummary } from "@/lib/types";
 import { StatusPill } from "@/components/StatusPill";
 import { ProjectFilter } from "@/components/ProjectFilter";
+import { ResendCredentialsButton } from "@/components/ResendCredentialsButton";
 import { RegisterCandidateForm } from "./RegisterCandidateForm";
 import { EnrollCandidateButton } from "./EnrollCandidateButton";
 import { EditCandidateButton } from "./EditCandidateButton";
@@ -69,6 +70,7 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
               <th className="px-4 py-3">Enroll into a batch</th>
               <th className="px-4 py-3" />
               <th className="px-4 py-3" />
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -103,6 +105,9 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
                     <EditCandidateButton projectId={projectId} candidate={c} />
                   </td>
                   <td className="px-4 py-3">
+                    <ResendCredentialsButton userId={c._id} projectId={projectId} email={c.email} />
+                  </td>
+                  <td className="px-4 py-3">
                     <DeleteCandidateButton projectId={projectId} candidateId={c._id} candidateName={c.fullName} />
                   </td>
                 </tr>
@@ -110,7 +115,7 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
             })}
             {candidates.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   No candidates yet for this project.
                 </td>
               </tr>

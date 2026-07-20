@@ -3,10 +3,13 @@ import { Role } from "../models/Role";
 import { Project } from "../models/Project";
 import { CandidateProfile } from "../models/CandidateProfile";
 import { TrainerProfile } from "../models/TrainerProfile";
+import { Enrollment } from "../models/Enrollment";
+import { Workshop } from "../models/Workshop";
+import { Batch } from "../models/Batch";
 import { ApiError } from "../utils/ApiError";
 import { hashPassword, generateTemporaryPassword, generateRawToken } from "../utils/password";
 import { sendNotification } from "./notification.service";
-import { sendAccountWelcomeEmail } from "./email.service";
+import { sendAccountWelcomeEmail, sendCandidateWelcomeEmail } from "./email.service";
 import { cascadeDeleteCandidate, cascadeDeleteTrainer } from "../utils/cascadeDelete";
 import { env } from "../config/env";
 import type { RoleCode } from "../types/enums";
@@ -194,6 +197,91 @@ export async function updateUserBasicInfo(
 
   const updated = await User.findByIdAndUpdate(userId, update, { new: true });
   return updated!;
+}
+
+/**
+ * Generates a fresh temporary password and re-sends login credentials to the
+ * user's *current* email — the fix for "I corrected a typo'd email, but the
+ * original welcome mail with their password already went to the wrong
+ * address." Staff accounts get the same welcome template as at creation;
+ * candidates need their most recent enrollment's workshop/batch to reuse
+ * sendCandidateWelcomeEmail (it's the same template that includes their
+ * attendance QR badge), so this 400s if they haven't been enrolled yet — in
+ * that case the normal enrollment flow will already email the corrected
+ * address the first time they're enrolled, so there's nothing to resend.
+ */
+export async function resendUserCredentials(projectId: string, userId: string, updatedBy: string) {
+  const user = await getUserById(projectId, userId);
+  const temporaryPassword = generateTemporaryPassword();
+
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { passwordHash: await hashPassword(temporaryPassword), mustChangePassword: true, updatedBy } },
+  );
+
+  if (user.roleCode === "candidate") {
+    const enrollment = await Enrollment.findOne({ candidateUserId: user._id, projectId }).sort({ createdAt: -1 });
+    if (!enrollment) {
+      throw ApiError.badRequest("This candidate hasn't been enrolled in a batch yet — their login email sends automatically at enrollment");
+    }
+
+    const [workshop, batch, profile] = await Promise.all([
+      Workshop.findById(enrollment.workshopId),
+      Batch.findById(enrollment.batchId),
+      CandidateProfile.findOne({ userId: user._id, projectId }),
+    ]);
+    if (!workshop || !batch || !profile?.attendanceQrToken) {
+      throw ApiError.badRequest("Missing workshop/batch/QR details for this candidate");
+    }
+
+    const emailResult = await sendCandidateWelcomeEmail({
+      to: user.email,
+      fullName: user.fullName,
+      loginEmail: user.email,
+      temporaryPassword,
+      attendanceQrToken: profile.attendanceQrToken,
+      workshopTitle: workshop.title,
+      batchName: batch.name,
+    });
+
+    await sendNotification({
+      projectId,
+      recipientUserId: user.id,
+      channel: "email",
+      subject: "Your login details were resent",
+      body: emailResult.delivered
+        ? `New login credentials sent to ${user.email}.`
+        : `Email delivery skipped (${emailResult.reason}). Temporary password: ${temporaryPassword}`,
+      relatedEntity: { type: "user", id: user.id },
+    });
+
+    return { emailDelivered: emailResult.delivered };
+  }
+
+  const portal = STAFF_PORTAL_BY_ROLE[user.roleCode];
+  if (!portal) throw ApiError.badRequest(`No portal configured for role "${user.roleCode}"`);
+
+  const emailResult = await sendAccountWelcomeEmail({
+    to: user.email,
+    fullName: user.fullName,
+    loginEmail: user.email,
+    temporaryPassword,
+    roleLabel: portal.label,
+    portalUrl: portal.url,
+  });
+
+  await sendNotification({
+    projectId,
+    recipientUserId: user.id,
+    channel: "email",
+    subject: "Your login details were resent",
+    body: emailResult.delivered
+      ? `New login credentials sent to ${user.email}.`
+      : `Email delivery skipped (${emailResult.reason}). Temporary password: ${temporaryPassword}`,
+    relatedEntity: { type: "user", id: user.id },
+  });
+
+  return { emailDelivered: emailResult.delivered };
 }
 
 /**

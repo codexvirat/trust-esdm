@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { setUserStatusAction, deleteUserAction, updateUserAction, type FormState } from "@/app/actions/users";
 import { StatusPill } from "@/components/StatusPill";
+import { ResendCredentialsButton } from "@/components/ResendCredentialsButton";
 import type { UserSummary } from "@/lib/types";
 
 const initialEditState: FormState = {};
@@ -90,6 +91,7 @@ export function UserRow({ user, redirectPath }: { user: UserSummary; redirectPat
         >
           Edit
         </button>
+        <ResendCredentialsButton userId={user._id} projectId={user.projectId} email={user.email} />
         <button
           type="button"
           disabled={pending}

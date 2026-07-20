@@ -74,6 +74,19 @@ export async function updateUserAction(
   return {};
 }
 
+export async function resendCredentialsAction(userId: string, projectId: string): Promise<{ error?: string; delivered?: boolean }> {
+  const { accessToken } = await requireAdminRole();
+  try {
+    const result = await apiFetch<{ emailDelivered: boolean }>(`/users/${userId}/resend-credentials?projectId=${projectId}`, {
+      method: "POST",
+      accessToken,
+    });
+    return { delivered: result.emailDelivered };
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to resend login credentials." };
+  }
+}
+
 export async function deleteUserAction(userId: string, projectId: string, redirectPath: string): Promise<void> {
   const { accessToken } = await requireAdminRole();
   await apiFetch(`/users/${userId}?projectId=${projectId}`, { method: "DELETE", accessToken });

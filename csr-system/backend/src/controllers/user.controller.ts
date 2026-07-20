@@ -87,6 +87,18 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
   res.json(user);
 });
 
+export const resendCredentials = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  // Same reasoning as `update` — this mints and emails a brand new
+  // temporary password, so it's Super Admin-only regardless of target role.
+  if (req.user.roleCode !== "super_admin") {
+    throw ApiError.forbidden("Only a Super Admin may resend login credentials");
+  }
+  const projectId = req.query.projectId ? (req.query.projectId as string) : req.user.projectId;
+  const result = await userService.resendUserCredentials(projectId, req.params.id as string, req.user.userId);
+  res.json(result);
+});
+
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   const projectId = req.user.roleCode === "super_admin" && req.query.projectId ? (req.query.projectId as string) : req.user.projectId;

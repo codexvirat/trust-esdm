@@ -19,4 +19,5 @@ userRouter.patch("/:id/status", validate(setStatusSchema), controller.setStatus)
 // Editing basic account details (name/email/phone) is Super Admin-only —
 // see controller.update — since it can silently reassign a login identity.
 userRouter.patch("/:id", validate(updateUserSchema), controller.update);
+userRouter.post("/:id/resend-credentials", controller.resendCredentials);
 userRouter.delete("/:id", controller.remove);
