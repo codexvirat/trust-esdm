@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireOrgAdminRole } from "@/lib/dal";
 import { apiFetch } from "@/lib/api";
-import type { Batch, CandidateProfile, WorkshopSummary, UserSummary } from "@/lib/types";
+import type { Batch, CandidateProfile, Enrollment, WorkshopSummary, UserSummary } from "@/lib/types";
 import { StatusPill } from "@/components/StatusPill";
 import { RegisterCandidateForm } from "./RegisterCandidateForm";
 import { EnrollCandidateButton } from "./EnrollCandidateButton";
@@ -10,10 +10,13 @@ import { DeleteCandidateButton } from "./DeleteCandidateButton";
 export default async function CandidatesPage() {
   const { accessToken } = await requireOrgAdminRole();
 
-  const [candidates, workshops] = await Promise.all([
+  const [candidates, workshops, enrollments] = await Promise.all([
     apiFetch<UserSummary[]>("/users?roleCode=candidate", { accessToken }),
     apiFetch<WorkshopSummary[]>("/workshops", { accessToken }),
+    apiFetch<Enrollment[]>("/enrollments", { accessToken }),
   ]);
+
+  const enrolledCandidateIds = new Set(enrollments.filter((en) => en.status !== "dropped").map((en) => en.candidateUserId));
 
   const batchLists = await Promise.all(workshops.map((e) => apiFetch<Batch[]>(`/workshops/${e._id}/batches`, { accessToken })));
   const batchesByWorkshop: Record<string, Batch[]> = {};
@@ -76,7 +79,12 @@ export default async function CandidatesPage() {
                     <StatusPill status={c.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <EnrollCandidateButton candidateId={c._id} workshops={workshops} batchesByWorkshop={batchesByWorkshop} />
+                    <EnrollCandidateButton
+                      candidateId={c._id}
+                      workshops={workshops}
+                      batchesByWorkshop={batchesByWorkshop}
+                      isEnrolled={enrolledCandidateIds.has(c._id)}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <DeleteCandidateButton candidateId={c._id} candidateName={c.fullName} />

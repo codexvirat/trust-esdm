@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch } from "@/lib/api";
-import type { Batch, CandidateProfile, WorkshopSummary, Project, UserSummary } from "@/lib/types";
+import type { Batch, CandidateProfile, Enrollment, WorkshopSummary, Project, UserSummary } from "@/lib/types";
 import { StatusPill } from "@/components/StatusPill";
 import { ProjectFilter } from "@/components/ProjectFilter";
 import { RegisterCandidateForm } from "./RegisterCandidateForm";
@@ -13,11 +13,14 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
   const { projectId: requestedProjectId } = await searchParams;
   const projectId = requestedProjectId || user.projectId;
 
-  const [projects, candidates, workshops] = await Promise.all([
+  const [projects, candidates, workshops, enrollments] = await Promise.all([
     apiFetch<Project[]>("/projects", { accessToken }),
     apiFetch<UserSummary[]>(`/users?roleCode=candidate&projectId=${projectId}`, { accessToken }),
     apiFetch<WorkshopSummary[]>(`/workshops?projectId=${projectId}`, { accessToken }),
+    apiFetch<Enrollment[]>(`/enrollments?projectId=${projectId}`, { accessToken }),
   ]);
+
+  const enrolledCandidateIds = new Set(enrollments.filter((en) => en.status !== "dropped").map((en) => en.candidateUserId));
 
   const batchLists = await Promise.all(workshops.map((e) => apiFetch<Batch[]>(`/workshops/${e._id}/batches?projectId=${projectId}`, { accessToken })));
   const batchesByWorkshop: Record<string, Batch[]> = {};
@@ -81,7 +84,13 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
                     <StatusPill status={c.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <EnrollCandidateButton projectId={projectId} candidateId={c._id} workshops={workshops} batchesByWorkshop={batchesByWorkshop} />
+                    <EnrollCandidateButton
+                      projectId={projectId}
+                      candidateId={c._id}
+                      workshops={workshops}
+                      batchesByWorkshop={batchesByWorkshop}
+                      isEnrolled={enrolledCandidateIds.has(c._id)}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     <DeleteCandidateButton projectId={projectId} candidateId={c._id} candidateName={c.fullName} />

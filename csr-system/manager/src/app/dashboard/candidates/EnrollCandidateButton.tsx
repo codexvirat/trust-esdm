@@ -10,10 +10,12 @@ export function EnrollCandidateButton({
   candidateId,
   workshops,
   batchesByWorkshop,
+  isEnrolled,
 }: {
   candidateId: string;
   workshops: WorkshopSummary[];
   batchesByWorkshop: Record<string, Batch[]>;
+  isEnrolled: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [workshopId, setWorkshopId] = useState("");
@@ -29,6 +31,12 @@ export function EnrollCandidateButton({
   }, [pending, state.error]);
 
   const batches = useMemo(() => (workshopId ? (batchesByWorkshop[workshopId] ?? []) : []), [workshopId, batchesByWorkshop]);
+
+  if (isEnrolled) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">Enrolled</span>
+    );
+  }
 
   if (!open) {
     return (
