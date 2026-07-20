@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/StatusPill";
 import { ProjectFilter } from "@/components/ProjectFilter";
 import { RegisterCandidateForm } from "./RegisterCandidateForm";
 import { EnrollCandidateButton } from "./EnrollCandidateButton";
+import { EditCandidateButton } from "./EditCandidateButton";
 import { DeleteCandidateButton } from "./DeleteCandidateButton";
 
 export default async function CandidatesPage({ searchParams }: { searchParams: Promise<{ projectId?: string }> }) {
@@ -67,6 +68,7 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Enroll into a batch</th>
               <th className="px-4 py-3" />
+              <th className="px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -98,6 +100,9 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
                     />
                   </td>
                   <td className="px-4 py-3">
+                    <EditCandidateButton projectId={projectId} candidate={c} />
+                  </td>
+                  <td className="px-4 py-3">
                     <DeleteCandidateButton projectId={projectId} candidateId={c._id} candidateName={c.fullName} />
                   </td>
                 </tr>
@@ -105,7 +110,7 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
             })}
             {candidates.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   No candidates yet for this project.
                 </td>
               </tr>

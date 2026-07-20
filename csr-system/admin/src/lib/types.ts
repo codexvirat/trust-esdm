@@ -104,6 +104,7 @@ export interface CandidateProfile {
   affiliatedOrganisation?: AffiliatedOrganisation | null;
   alumniStatus: boolean;
   profileCompletionPercent: number;
+  attendanceQrToken?: string | null;
 }
 
 export interface Role {

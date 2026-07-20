@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch, ApiError } from "@/lib/api";
 import type { CandidateProfile, UserSummary } from "@/lib/types";
@@ -43,6 +44,9 @@ export default async function CandidateDetailPage({
   const { user: candidate, profile } = result;
   const photoUrl = mediaUrl(profile?.photoMediaId ?? null);
   const resumeUrl = mediaUrl(profile?.resumeMediaId ?? null);
+  const qrDataUrl = profile?.attendanceQrToken
+    ? await QRCode.toDataURL(profile.attendanceQrToken, { width: 240, margin: 2 })
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -104,6 +108,17 @@ export default async function CandidateDetailPage({
               />
             </dl>
           </div>
+
+          {qrDataUrl && (
+            <div className="rounded-xl border border-slate-200 bg-white p-6">
+              <h2 className="text-base font-semibold text-slate-900">Attendance QR</h2>
+              <p className="mt-1 text-xs text-slate-500">Scanned by trainers/workshop managers to mark this candidate present.</p>
+              <div className="mt-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrDataUrl} alt="Attendance QR code" className="h-40 w-40 rounded-lg border border-slate-200" />
+              </div>
+            </div>
+          )}
 
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <h2 className="text-base font-semibold text-slate-900">Address</h2>
