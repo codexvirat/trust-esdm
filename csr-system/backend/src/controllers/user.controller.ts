@@ -74,6 +74,19 @@ export const setStatus = asyncHandler(async (req: Request, res: Response) => {
   res.json(user);
 });
 
+export const update = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  // Editing name/email/phone can reassign who can log in as this account, so
+  // it's restricted beyond the usual per-role USER_MANAGE_* permissions —
+  // only a Super Admin may do it, regardless of target role.
+  if (req.user.roleCode !== "super_admin") {
+    throw ApiError.forbidden("Only a Super Admin may edit account details");
+  }
+  const projectId = req.query.projectId ? (req.query.projectId as string) : req.user.projectId;
+  const user = await userService.updateUserBasicInfo(projectId, req.params.id as string, req.body, req.user.userId);
+  res.json(user);
+});
+
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   const projectId = req.user.roleCode === "super_admin" && req.query.projectId ? (req.query.projectId as string) : req.user.projectId;

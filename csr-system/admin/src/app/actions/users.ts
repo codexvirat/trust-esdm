@@ -47,6 +47,33 @@ export async function setUserStatusAction(
   revalidatePath(redirectPath);
 }
 
+export async function updateUserAction(
+  userId: string,
+  projectId: string,
+  redirectPath: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { accessToken } = await requireAdminRole();
+
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  if (!fullName || !email) {
+    return { error: "Name and email are required." };
+  }
+
+  try {
+    await apiFetch(`/users/${userId}?projectId=${projectId}`, { method: "PATCH", accessToken, body: { fullName, email, phone } });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to update user." };
+  }
+
+  revalidatePath(redirectPath);
+  return {};
+}
+
 export async function deleteUserAction(userId: string, projectId: string, redirectPath: string): Promise<void> {
   const { accessToken } = await requireAdminRole();
   await apiFetch(`/users/${userId}?projectId=${projectId}`, { method: "DELETE", accessToken });

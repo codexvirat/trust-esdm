@@ -152,6 +152,51 @@ export async function setUserStatus(projectId: string, userId: string, status: "
 }
 
 /**
+ * Fixes typos in a user's identity fields (fullName/email/phone) — e.g. a
+ * candidate's email was mistyped at registration. Duplicate checks mirror the
+ * partial unique indexes on User (projectId+email, phone), scoped to
+ * non-deleted users, so this can't collide with an active account but can
+ * reuse an email/phone freed up by a soft-deleted one.
+ */
+export async function updateUserBasicInfo(
+  projectId: string,
+  userId: string,
+  updates: { fullName?: string; email?: string; phone?: string },
+  updatedBy: string,
+) {
+  await getUserById(projectId, userId); // 404s if missing/out of tenant before the checks below
+
+  const set: Record<string, unknown> = { updatedBy };
+  const unset: Record<string, unknown> = {};
+
+  if (updates.fullName !== undefined) set.fullName = updates.fullName;
+
+  if (updates.email !== undefined) {
+    const email = updates.email.trim().toLowerCase();
+    const existing = await User.findOne({ projectId, email, isDeleted: false, _id: { $ne: userId } });
+    if (existing) throw ApiError.conflict(`A user with email "${email}" already exists in this project`);
+    set.email = email;
+  }
+
+  if (updates.phone !== undefined) {
+    const phone = updates.phone.trim();
+    if (phone) {
+      const existing = await User.findOne({ phone, isDeleted: false, _id: { $ne: userId } });
+      if (existing) throw ApiError.conflict(`A user with phone "${phone}" already exists`);
+      set.phone = phone;
+    } else {
+      unset.phone = "";
+    }
+  }
+
+  const update: Record<string, unknown> = { $set: set };
+  if (Object.keys(unset).length > 0) update.$unset = unset;
+
+  const updated = await User.findByIdAndUpdate(userId, update, { new: true });
+  return updated!;
+}
+
+/**
  * Deleting a user is never just that one document — a candidate carries
  * enrollments/certificates/attendance/assessment-attempts/feedback, and a
  * trainer carries batch assignments. This cascades the appropriate cleanup

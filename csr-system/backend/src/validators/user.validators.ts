@@ -66,3 +66,11 @@ export const setStatusSchema = z.object({
     status: z.enum(["active", "inactive", "suspended"]),
   }),
 });
+
+export const updateUserSchema = z.object({
+  body: z.object({
+    fullName: z.string().min(2).optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+  }),
+});

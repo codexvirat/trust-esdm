@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as controller from "../controllers/user.controller";
 import { requireAuth } from "../middleware/auth";
 import { validate } from "../middleware/validate";
-import { createUserSchema, setStatusSchema } from "../validators/user.validators";
+import { createUserSchema, setStatusSchema, updateUserSchema } from "../validators/user.validators";
 
 export const userRouter = Router();
 
@@ -16,4 +16,7 @@ userRouter.get("/", controller.list);
 userRouter.get("/:id", controller.getById);
 userRouter.get("/:id/candidate-profile", controller.getCandidateProfile);
 userRouter.patch("/:id/status", validate(setStatusSchema), controller.setStatus);
+// Editing basic account details (name/email/phone) is Super Admin-only —
+// see controller.update — since it can silently reassign a login identity.
+userRouter.patch("/:id", validate(updateUserSchema), controller.update);
 userRouter.delete("/:id", controller.remove);

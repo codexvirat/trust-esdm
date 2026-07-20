@@ -12,7 +12,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   const projects = await apiFetch<Project[]>("/projects", { accessToken });
   const projectId = requestedProjectId || user.projectId;
 
-  const users = await apiFetch<UserSummary[]>(`/users?projectId=${projectId}`, { accessToken });
+  const allUsers = await apiFetch<UserSummary[]>(`/users?projectId=${projectId}`, { accessToken });
+  // Candidates have their own dedicated page (Candidates) — this page is for staff accounts only.
+  const users = allUsers.filter((u) => u.roleCode !== "candidate");
   const activeProject = projects.find((o) => o._id === projectId);
 
   return (
@@ -33,7 +35,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           {users.map((u) => (
             <UserRow key={u._id} user={u} redirectPath="/dashboard/users" />
           ))}
-          {users.length === 0 && <li className="py-6 text-center text-sm text-slate-400">No users in this project yet.</li>}
+          {users.length === 0 && <li className="py-6 text-center text-sm text-slate-400">No staff accounts in this project yet.</li>}
         </ul>
       </div>
     </div>
