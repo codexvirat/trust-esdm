@@ -111,7 +111,15 @@ export default async function BatchDetailPage({
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900">Attendance sessions</h2>
-          <CreateSessionForm projectId={projectId} workshopId={workshopId} batchId={batchId} />
+          <div className="flex items-center gap-4">
+            <a
+              href={`/api/workshops/${workshopId}/batches/${batchId}/attendance-export?projectId=${projectId}`}
+              className="text-sm font-medium text-teal-700 hover:text-teal-900"
+            >
+              Download Excel ↓
+            </a>
+            <CreateSessionForm projectId={projectId} workshopId={workshopId} batchId={batchId} />
+          </div>
         </div>
         <div className="mt-4">
           <SessionsPanel

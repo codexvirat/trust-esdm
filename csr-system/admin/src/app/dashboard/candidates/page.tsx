@@ -49,9 +49,17 @@ export default async function CandidatesPage({ searchParams }: { searchParams: P
           <h1 className="text-2xl font-semibold text-slate-900">Candidates</h1>
           <p className="mt-1 text-sm text-slate-500">Everyone with a candidate account, across every project.</p>
         </div>
-        <Link href={`/dashboard/candidates/by-batch?projectId=${projectId}`} className="text-sm font-medium text-teal-700 hover:text-teal-900">
-          View by batch →
-        </Link>
+        <div className="flex items-center gap-4">
+          <a
+            href={`/api/candidates/export?projectId=${projectId}`}
+            className="text-sm font-medium text-teal-700 hover:text-teal-900"
+          >
+            Download Excel ↓
+          </a>
+          <Link href={`/dashboard/candidates/by-batch?projectId=${projectId}`} className="text-sm font-medium text-teal-700 hover:text-teal-900">
+            View by batch →
+          </Link>
+        </div>
       </div>
 
       <ProjectFilter projects={projects} selectedId={projectId} basePath="/dashboard/candidates" />
