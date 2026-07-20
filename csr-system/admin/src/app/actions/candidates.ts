@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch, ApiError } from "@/lib/api";
+import type { CandidateProfile, UserSummary } from "@/lib/types";
 
 export interface FormState {
   error?: string;
@@ -101,6 +102,13 @@ export async function deleteCandidateAction(projectId: string, candidateId: stri
   await apiFetch(`/users/${candidateId}?projectId=${projectId}`, { method: "DELETE", accessToken });
   revalidatePath("/dashboard/candidates");
   revalidatePath("/dashboard");
+}
+
+export async function getCandidateProfileAction(projectId: string, candidateId: string) {
+  const { accessToken } = await requireAdminRole();
+  return apiFetch<{ user: UserSummary; profile: CandidateProfile | null }>(`/users/${candidateId}/candidate-profile?projectId=${projectId}`, {
+    accessToken,
+  });
 }
 
 export async function enrollCandidateAction(projectId: string, _prevState: FormState, formData: FormData): Promise<FormState> {
