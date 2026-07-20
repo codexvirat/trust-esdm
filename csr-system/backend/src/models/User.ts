@@ -70,8 +70,10 @@ userSchema.set("toJSON", {
   },
 });
 
-userSchema.index({ projectId: 1, email: 1 }, { unique: true });
-userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+// Partial: only enforced among non-deleted users, so a soft-deleted account's
+// email/phone doesn't permanently block reuse by a new account.
+userSchema.index({ projectId: 1, email: 1 }, { unique: true, partialFilterExpression: { isDeleted: false } });
+userSchema.index({ phone: 1 }, { unique: true, partialFilterExpression: { isDeleted: false, phone: { $exists: true } } });
 userSchema.index({ email: 1 });
 userSchema.index({ projectId: 1, roleCode: 1, status: 1 });
 
