@@ -72,11 +72,21 @@ batchRouter.use("/:batchId/workshop-manager-assignments", workshopManagerAssignm
 // An attendance session (and its QR) always belongs to one batch.
 batchRouter.use("/:batchId/attendance-sessions", attendanceSessionRouter);
 
-// Bulk-issues certificates for every eligible, not-yet-certified enrollment in the batch at once.
+// Bulk-issues certificates for every eligible, not-yet-certified enrollment in the batch at once —
+// saved as drafts (rendered, downloadable, but not emailed or visible to candidates yet).
 batchRouter.post(
   "/:batchId/certificates/generate",
   requirePermission(PERMISSIONS.CERTIFICATE_ISSUE),
   requireWorkshopManagerAssignedToBatch,
   validate(generateCertificatesForBatchSchema),
   certificateController.generateForBatch,
+);
+
+// Publishes every draft certificate in the batch: sends the candidate their email and marks the
+// enrollment "certified" so it shows up on their dashboard.
+batchRouter.post(
+  "/:batchId/certificates/publish",
+  requirePermission(PERMISSIONS.CERTIFICATE_ISSUE),
+  requireWorkshopManagerAssignedToBatch,
+  certificateController.publishForBatch,
 );

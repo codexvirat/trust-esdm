@@ -76,7 +76,9 @@ export type AttemptResult = (typeof ATTEMPT_RESULTS)[number];
 export const FEEDBACK_QUESTION_TYPES = ["rating", "text", "nps"] as const;
 export type FeedbackQuestionType = (typeof FEEDBACK_QUESTION_TYPES)[number];
 
-export const CERTIFICATE_STATUSES = ["issued", "revoked"] as const;
+// draft = rendered and stored, but not yet emailed to the candidate or shown on their dashboard —
+// see certificate.service.ts#publishCertificatesForBatch for the step that flips draft -> issued.
+export const CERTIFICATE_STATUSES = ["draft", "issued", "revoked"] as const;
 export type CertificateStatus = (typeof CERTIFICATE_STATUSES)[number];
 
 export const NOTIFICATION_CHANNELS = ["email", "sms", "whatsapp", "push"] as const;

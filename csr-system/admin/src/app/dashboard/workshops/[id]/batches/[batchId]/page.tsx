@@ -73,6 +73,11 @@ export default async function BatchDetailPage({
     enrollments.map((e) => apiFetch<CertificateEligibility>(`/enrollments/${e._id}/certificate/eligibility?${orgQuery}`, { accessToken })),
   );
 
+  const draftCertificates = await apiFetch<{ _id: string }[]>(
+    `/certificates?workshopId=${workshopId}&batchId=${batchId}&status=draft&${orgQuery}`,
+    { accessToken },
+  );
+
   const batchAssessments = assessments.filter((a) => a.batchId === batchId);
   const batchAttempts = await Promise.all(
     batchAssessments.map((a) =>
@@ -133,7 +138,13 @@ export default async function BatchDetailPage({
         </div>
       </div>
 
-      <GenerateCertificatesPanel projectId={projectId} workshopId={workshopId} batchId={batchId} templates={templates} />
+      <GenerateCertificatesPanel
+        projectId={projectId}
+        workshopId={workshopId}
+        batchId={batchId}
+        templates={templates}
+        draftCount={draftCertificates.length}
+      />
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-base font-semibold text-slate-900">Candidates</h2>

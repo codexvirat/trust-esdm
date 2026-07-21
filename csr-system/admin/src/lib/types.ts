@@ -363,7 +363,7 @@ export interface CertificateTemplate {
   layoutConfig?: CertificateLayoutConfig;
 }
 
-export type CertificateStatus = "issued" | "revoked";
+export type CertificateStatus = "draft" | "issued" | "revoked";
 
 export interface Certificate {
   _id: string;
@@ -390,7 +390,7 @@ export interface CertificateEligibility {
 
 export interface BatchGenerateResult {
   totalEnrollments: number;
-  issued: { enrollmentId: string; candidateName: string; certificateId: string; certificateNumber: string }[];
+  drafted: { enrollmentId: string; candidateName: string; certificateId: string; certificateNumber: string }[];
   skippedAlreadyCertified: { enrollmentId: string; candidateName: string }[];
   skippedIneligible: {
     enrollmentId: string;
@@ -402,6 +402,12 @@ export interface BatchGenerateResult {
     };
   }[];
   failed: { enrollmentId: string; candidateName: string; error: string }[];
+}
+
+export interface BatchPublishResult {
+  totalDrafts: number;
+  published: { certificateId: string; candidateName: string; certificateNumber: string; emailDelivered: boolean }[];
+  failed: { certificateId: string; candidateName: string; error: string }[];
 }
 
 export interface Organisation {

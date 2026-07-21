@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch, ApiError, API_URL } from "@/lib/api";
-import type { BatchGenerateResult, Certificate, CertificateTemplate } from "@/lib/types";
+import type { BatchGenerateResult, BatchPublishResult, Certificate, CertificateTemplate } from "@/lib/types";
 
 export interface FormState {
   error?: string;
@@ -84,9 +84,23 @@ export async function uploadCertificateTemplateAction(projectId: string, _prevSt
     return { error: "Choose a background image to upload." };
   }
 
+  const locationFilledIn = formData.get("locationFilledIn") === "true";
+  const dateFilledIn = formData.get("dateFilledIn") === "true";
+  const qrFilledIn = formData.get("qrFilledIn") === "true";
+
   const uploadBody = new FormData();
   uploadBody.append("name", name);
   uploadBody.append("background", file, file.name);
+  if (locationFilledIn || dateFilledIn || qrFilledIn) {
+    uploadBody.append(
+      "layoutConfig",
+      JSON.stringify({
+        location: locationFilledIn ? null : undefined,
+        issueDate: dateFilledIn ? null : undefined,
+        qr: qrFilledIn ? null : undefined,
+      }),
+    );
+  }
 
   const res = await fetch(`${API_URL}/certificate-templates/upload?projectId=${projectId}`, {
     method: "POST",
@@ -137,5 +151,30 @@ export async function generateCertificatesForBatchAction(
     return { result };
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "Failed to generate certificates." };
+  }
+}
+
+export interface PublishBatchState {
+  error?: string;
+  result?: BatchPublishResult;
+}
+
+export async function publishCertificatesForBatchAction(
+  projectId: string,
+  workshopId: string,
+  batchId: string,
+  _prevState: PublishBatchState,
+): Promise<PublishBatchState> {
+  const { accessToken } = await requireAdminRole();
+
+  try {
+    const result = await apiFetch<BatchPublishResult>(
+      `/workshops/${workshopId}/batches/${batchId}/certificates/publish?projectId=${projectId}`,
+      { method: "POST", accessToken },
+    );
+    revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+    return { result };
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to publish certificates." };
   }
 }

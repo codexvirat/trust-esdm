@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { apiFetch } from "@/lib/api";
 import { PROJECT_SLUG } from "@/lib/constants";
 import type { MarqueeItem, PublicOrganisation, PublicWorkshop } from "@/lib/types";
@@ -316,6 +317,7 @@ export default async function HomePage() {
               <a href="#tracks">Certification Tracks</a>
               <a href="#journey">How it works</a>
               <a href="#faq">Questions</a>
+              <Link href="/verify">Verify Certificate</Link>
             </div>
           </div>
           <div>

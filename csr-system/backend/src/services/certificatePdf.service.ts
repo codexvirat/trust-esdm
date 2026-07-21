@@ -20,19 +20,23 @@ export interface CertificateQrPosition {
 export interface CertificateLayoutConfig {
   certificateNumber: CertificateFieldPosition;
   participantName: CertificateFieldPosition;
-  location: CertificateFieldPosition;
-  issueDate: CertificateFieldPosition;
-  qr: CertificateQrPosition;
+  // null = this template already has the location/date/QR baked into its background
+  // image, so skip drawing an overlay for it (see mergeWithDefaults). Baking the QR in
+  // is safe because its content (the static /verify landing page URL) is identical for
+  // every certificate — see certificate.service.ts#issueCertificateCore.
+  location: CertificateFieldPosition | null;
+  issueDate: CertificateFieldPosition | null;
+  qr: CertificateQrPosition | null;
 }
 
 /** Fallback layout, tuned to the reference certificate.jpeg (landscape, ~1536x1024): cert no. top-center,
  * large centered participant name mid-page, location/date along the bottom, QR box bottom-right. */
 export const DEFAULT_CERTIFICATE_LAYOUT: CertificateLayoutConfig = {
-  certificateNumber: { xPct: 63, yPct: 6.5, fontSize: 15, align: "left" },
-  participantName: { xPct: 50, yPct: 54, fontSize: 32, align: "center" },
-  location: { xPct: 40, yPct: 78.5, fontSize: 13, align: "left" },
-  issueDate: { xPct: 66, yPct: 78.5, fontSize: 13, align: "left" },
-  qr: { xPct: 82, yPct: 79, widthPct: 7 },
+  certificateNumber: { xPct: 62, yPct: 5.8, fontSize: 26, align: "left" },
+  participantName: { xPct: 50, yPct: 54, fontSize: 34, align: "center" },
+  location: { xPct: 40, yPct: 76.5, fontSize: 19, align: "left" },
+  issueDate: { xPct: 66, yPct: 76.5, fontSize: 19, align: "left" },
+  qr: { xPct: 85.9, yPct: 82.5, widthPct: 11.5 },
 };
 
 function mergeField(base: CertificateFieldPosition, override?: Partial<CertificateFieldPosition>): CertificateFieldPosition {
@@ -41,11 +45,11 @@ function mergeField(base: CertificateFieldPosition, override?: Partial<Certifica
 
 export function mergeWithDefaults(partial?: Partial<CertificateLayoutConfig> | null): CertificateLayoutConfig {
   return {
-    certificateNumber: mergeField(DEFAULT_CERTIFICATE_LAYOUT.certificateNumber, partial?.certificateNumber),
-    participantName: mergeField(DEFAULT_CERTIFICATE_LAYOUT.participantName, partial?.participantName),
-    location: mergeField(DEFAULT_CERTIFICATE_LAYOUT.location, partial?.location),
-    issueDate: mergeField(DEFAULT_CERTIFICATE_LAYOUT.issueDate, partial?.issueDate),
-    qr: { ...DEFAULT_CERTIFICATE_LAYOUT.qr, ...partial?.qr },
+    certificateNumber: mergeField(DEFAULT_CERTIFICATE_LAYOUT.certificateNumber, partial?.certificateNumber ?? undefined),
+    participantName: mergeField(DEFAULT_CERTIFICATE_LAYOUT.participantName, partial?.participantName ?? undefined),
+    location: partial?.location === null ? null : mergeField(DEFAULT_CERTIFICATE_LAYOUT.location as CertificateFieldPosition, partial?.location ?? undefined),
+    issueDate: partial?.issueDate === null ? null : mergeField(DEFAULT_CERTIFICATE_LAYOUT.issueDate as CertificateFieldPosition, partial?.issueDate ?? undefined),
+    qr: partial?.qr === null ? null : { ...(DEFAULT_CERTIFICATE_LAYOUT.qr as CertificateQrPosition), ...partial?.qr },
   };
 }
 
@@ -90,22 +94,23 @@ export async function renderCertificatePdf(input: RenderCertificatePdfInput): Pr
   const page = doc.addPage([pageWidth, pageHeight]);
   page.drawImage(backgroundImage, { x: 0, y: 0, width: pageWidth, height: pageHeight });
 
-  const font = await doc.embedFont(StandardFonts.Helvetica);
   const nameFont = await doc.embedFont(StandardFonts.HelveticaBold);
 
   const dateLabel = input.issueDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
-  drawField(page, font, input.certificateNumber, input.layoutConfig.certificateNumber, pageWidth, pageHeight);
+  drawField(page, nameFont, input.certificateNumber, input.layoutConfig.certificateNumber, pageWidth, pageHeight);
   drawField(page, nameFont, input.participantName, input.layoutConfig.participantName, pageWidth, pageHeight);
-  if (input.location) drawField(page, font, input.location, input.layoutConfig.location, pageWidth, pageHeight);
-  drawField(page, font, dateLabel, input.layoutConfig.issueDate, pageWidth, pageHeight);
+  if (input.location && input.layoutConfig.location) drawField(page, nameFont, input.location, input.layoutConfig.location, pageWidth, pageHeight);
+  if (input.layoutConfig.issueDate) drawField(page, nameFont, dateLabel, input.layoutConfig.issueDate, pageWidth, pageHeight);
 
-  const qrBytes = await QRCode.toBuffer(input.verificationUrl, { width: 512, margin: 1 });
-  const qrImage = await doc.embedPng(qrBytes);
-  const qrWidth = (input.layoutConfig.qr.widthPct / 100) * pageWidth;
-  const qrX = (input.layoutConfig.qr.xPct / 100) * pageWidth - qrWidth / 2;
-  const qrY = pageHeight - (input.layoutConfig.qr.yPct / 100) * pageHeight - qrWidth / 2;
-  page.drawImage(qrImage, { x: qrX, y: qrY, width: qrWidth, height: qrWidth });
+  if (input.layoutConfig.qr) {
+    const qrBytes = await QRCode.toBuffer(input.verificationUrl, { width: 512, margin: 1 });
+    const qrImage = await doc.embedPng(qrBytes);
+    const qrWidth = (input.layoutConfig.qr.widthPct / 100) * pageWidth;
+    const qrX = (input.layoutConfig.qr.xPct / 100) * pageWidth - qrWidth / 2;
+    const qrY = pageHeight - (input.layoutConfig.qr.yPct / 100) * pageHeight - qrWidth / 2;
+    page.drawImage(qrImage, { x: qrX, y: qrY, width: qrWidth, height: qrWidth });
+  }
 
   const pdfBytes = await doc.save();
   return Buffer.from(pdfBytes);

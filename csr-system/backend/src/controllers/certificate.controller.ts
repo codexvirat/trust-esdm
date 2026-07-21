@@ -34,6 +34,16 @@ export const generateForBatch = asyncHandler(async (req: Request, res: Response)
   res.status(200).json(result);
 });
 
+export const publishForBatch = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const result = await service.publishCertificatesForBatch({
+    projectId: resolveProjectId(req),
+    workshopId: req.params.workshopId as string,
+    batchId: req.params.batchId as string,
+  });
+  res.status(200).json(result);
+});
+
 export const revoke = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   const certificate = await service.revokeCertificate({
@@ -56,6 +66,7 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
   res.json(
     await service.listCertificates(resolveProjectId(req), {
       workshopId: req.query.workshopId as string | undefined,
+      batchId: req.query.batchId as string | undefined,
       candidateUserId: req.query.candidateUserId as string | undefined,
       status: req.query.status as string | undefined,
     }),

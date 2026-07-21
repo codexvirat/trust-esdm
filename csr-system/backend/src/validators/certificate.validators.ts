@@ -12,9 +12,11 @@ const positionSchema = z.object({
 export const certificateLayoutConfigSchema = z.object({
   certificateNumber: positionSchema.optional(),
   participantName: positionSchema.optional(),
-  location: positionSchema.optional(),
-  issueDate: positionSchema.optional(),
-  qr: positionSchema.optional(),
+  // null = this template's background image already has location/date/QR baked in;
+  // skip drawing an overlay for it (see certificatePdf.service.ts#mergeWithDefaults).
+  location: positionSchema.nullish(),
+  issueDate: positionSchema.nullish(),
+  qr: positionSchema.nullish(),
 });
 
 export const createCertificateTemplateSchema = z.object({

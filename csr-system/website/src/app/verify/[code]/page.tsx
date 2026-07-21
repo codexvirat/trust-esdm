@@ -9,7 +9,7 @@ interface VerifyResult {
   candidateName: string;
   workshopTitle: string;
   batchName: string | null;
-  projectName: string;
+  organisationName: string;
 }
 
 function formatDateTime(iso: string): string {
@@ -53,11 +53,12 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
             </p>
 
             <div style={{ marginTop: 28, display: "grid", gap: 14 }}>
+              <Row label="Candidate" value={result.candidateName} />
               <Row label="Workshop" value={result.workshopTitle} />
               {result.batchName && <Row label="Batch" value={result.batchName} />}
               <Row label="Certificate No." value={result.certificateNumber} />
               <Row label="Issued on" value={formatDateTime(result.issueDate)} />
-              <Row label="Organization" value={result.projectName} />
+              <Row label="Organization" value={result.organisationName} />
             </div>
           </div>
         </section>

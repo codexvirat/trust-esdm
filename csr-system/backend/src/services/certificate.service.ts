@@ -6,11 +6,13 @@ import { Certificate, type CertificateDoc } from "../models/Certificate";
 import { CertificateTemplate, type CertificateTemplateDoc } from "../models/CertificateTemplate";
 import { Enrollment, type EnrollmentDoc } from "../models/Enrollment";
 import { Batch } from "../models/Batch";
-import { Workshop } from "../models/Workshop";
+import { Workshop, type WorkshopDoc } from "../models/Workshop";
 import { Assessment } from "../models/Assessment";
 import { FeedbackForm } from "../models/FeedbackForm";
-import { User } from "../models/User";
+import { User, type UserAttrs, type UserMethods } from "../models/User";
 import { Project } from "../models/Project";
+import { CandidateProfile } from "../models/CandidateProfile";
+import { Organisation } from "../models/Organisation";
 import { getNextSequence } from "../models/Counter";
 import { ApiError } from "../utils/ApiError";
 import { sendNotification } from "./notification.service";
@@ -65,10 +67,63 @@ export async function checkEligibility(projectId: string, enrollmentId: string) 
 }
 
 /**
+ * Sends the "your certificate is ready" email + in-app notification for an already-persisted,
+ * issued certificate. Called right after issuance for a single-issue, and again later for every
+ * certificate in a batch when an admin publishes a batch of drafts (see publishCertificatesForBatch).
+ */
+async function deliverCertificateEmail(input: {
+  projectId: string;
+  certificate: HydratedDocument<CertificateDoc>;
+  candidate: HydratedDocument<UserAttrs, UserMethods> | null;
+  workshop: HydratedDocument<WorkshopDoc> | null;
+  pdfBuffer?: Buffer;
+}): Promise<import("./email.service").SendResult> {
+  const { projectId, certificate, candidate, workshop } = input;
+  const verificationUrl = `${env.WEBSITE_URL}/verify`;
+
+  let pdfBuffer = input.pdfBuffer;
+  if (!pdfBuffer && certificate.fileUrl) {
+    try {
+      pdfBuffer = await fs.readFile(resolveUploadsPath(certificate.fileUrl));
+    } catch (err) {
+      console.error("[certificate] could not read stored PDF for email attachment:", err);
+    }
+  }
+
+  if (!candidate) {
+    return { delivered: false, reason: "No candidate email on file" };
+  }
+
+  const emailResult = await sendCertificateIssuedEmail({
+    to: candidate.email,
+    fullName: candidate.fullName,
+    workshopTitle: workshop?.title ?? "your training",
+    certificateNumber: certificate.certificateNumber,
+    verificationCode: certificate.verificationCode,
+    verificationUrl,
+    pdfBuffer,
+  });
+
+  await sendNotification({
+    projectId,
+    recipientUserId: candidate.id,
+    channel: "email",
+    subject: `Your certificate for ${workshop?.title ?? "your training"} is ready`,
+    body: emailResult.delivered ? `Certificate email sent to ${candidate.email}.` : `Email delivery skipped (${emailResult.reason}).`,
+    relatedEntity: { type: "certificate", id: certificate.id },
+  });
+
+  return emailResult;
+}
+
+/**
  * Core single-enrollment issuance: gate check (unless precomputed), certificate number/verification
- * code, PDF render + write to disk, Enrollment update, and the issued-certificate email. Shared by
- * both the single-issue endpoint and the batch bulk-generate loop so there is exactly one place that
- * knows how to actually mint a certificate.
+ * code, PDF render + write to disk, and the Enrollment update. Shared by the single-issue endpoint
+ * and the batch bulk-generate loop so there is exactly one place that knows how to actually mint a
+ * certificate. When `status` is "draft" the certificate is rendered and saved but NOT emailed and
+ * the enrollment is NOT flipped to "certified" yet — that only happens on publish (see
+ * publishCertificatesForBatch), so drafts stay invisible to the candidate until an admin reviews and
+ * publishes them.
  */
 async function issueCertificateCore(input: {
   projectId: string;
@@ -77,8 +132,9 @@ async function issueCertificateCore(input: {
   issuedByUserId: string;
   origin: string;
   gates?: GateCheck;
+  status: "draft" | "issued";
 }): Promise<{ certificate: HydratedDocument<CertificateDoc>; emailResult: import("./email.service").SendResult }> {
-  const { projectId, enrollment, template, issuedByUserId, origin } = input;
+  const { projectId, enrollment, template, issuedByUserId, origin, status } = input;
 
   const gates = input.gates ?? (await evaluateGates(projectId, enrollment));
   if (!gatesMet(gates)) {
@@ -92,9 +148,11 @@ async function issueCertificateCore(input: {
   ]);
 
   const seq = await getNextSequence(`certificate_seq_${projectId}`);
-  const certificateNumber = `CERT-${String(seq).padStart(6, "0")}`;
+  const certificateNumber = String(seq).padStart(2, "0");
   const verificationCode = crypto.randomBytes(8).toString("hex");
-  const verificationUrl = `${env.WEBSITE_URL}/verify/${verificationCode}`;
+  // Static verification URL — every certificate's QR is byte-identical and just points at the
+  // lookup landing page; the candidate types their certificate number in there themselves.
+  const verificationUrl = `${env.WEBSITE_URL}/verify`;
 
   let fileUrl: string | null = null;
   let pdfBuffer: Buffer | undefined;
@@ -129,32 +187,18 @@ async function issueCertificateCore(input: {
     verificationCode,
     issueDate: new Date(),
     fileUrl,
-    status: "issued",
+    status,
     createdBy: issuedByUserId,
   });
 
-  await Enrollment.updateOne({ _id: enrollment.id }, { $set: { certificateId: certificate._id, status: "certified" } });
+  await Enrollment.updateOne(
+    { _id: enrollment.id },
+    { $set: { certificateId: certificate._id, ...(status === "issued" ? { status: "certified" } : {}) } },
+  );
 
-  let emailResult: import("./email.service").SendResult = { delivered: false, reason: "No candidate email on file" };
-  if (candidate) {
-    emailResult = await sendCertificateIssuedEmail({
-      to: candidate.email,
-      fullName: candidate.fullName,
-      workshopTitle: workshop?.title ?? "your training",
-      certificateNumber,
-      verificationCode,
-      verificationUrl,
-      pdfBuffer,
-    });
-
-    await sendNotification({
-      projectId,
-      recipientUserId: candidate.id,
-      channel: "email",
-      subject: `Your certificate for ${workshop?.title ?? "your training"} is ready`,
-      body: emailResult.delivered ? `Certificate email sent to ${candidate.email}.` : `Email delivery skipped (${emailResult.reason}).`,
-      relatedEntity: { type: "certificate", id: certificate.id },
-    });
+  let emailResult: import("./email.service").SendResult = { delivered: false, reason: "Saved as draft — not yet published" };
+  if (status === "issued") {
+    emailResult = await deliverCertificateEmail({ projectId, certificate, candidate, workshop, pdfBuffer });
   }
 
   return { certificate, emailResult };
@@ -173,20 +217,23 @@ export async function issueCertificate(input: { projectId: string; enrollmentId:
     template,
     issuedByUserId: input.issuedByUserId,
     origin: input.origin,
+    status: "issued",
   });
   return certificate;
 }
 
 export interface BatchGenerateResult {
   totalEnrollments: number;
-  issued: { enrollmentId: string; candidateName: string; certificateId: string; certificateNumber: string }[];
+  drafted: { enrollmentId: string; candidateName: string; certificateId: string; certificateNumber: string }[];
   skippedAlreadyCertified: { enrollmentId: string; candidateName: string }[];
   skippedIneligible: { enrollmentId: string; candidateName: string; gates: GateCheck }[];
   failed: { enrollmentId: string; candidateName: string; error: string }[];
 }
 
-/** Issues certificates for every eligible, not-yet-certified enrollment in a batch. One candidate's
- * failure is caught and reported, never aborts the rest of the batch. */
+/** Renders + saves a certificate (as a draft — not emailed, not yet visible to the candidate) for
+ * every eligible, not-yet-certified enrollment in a batch. One candidate's failure is caught and
+ * reported, never aborts the rest of the batch. Drafts are reviewed (e.g. via the certificates-zip
+ * download) and then sent out for real with publishCertificatesForBatch below. */
 export async function generateCertificatesForBatch(input: {
   projectId: string;
   workshopId: string;
@@ -200,7 +247,7 @@ export async function generateCertificatesForBatch(input: {
 
   const enrollments = await Enrollment.find({ projectId: input.projectId, workshopId: input.workshopId, batchId: input.batchId });
 
-  const result: BatchGenerateResult = { totalEnrollments: enrollments.length, issued: [], skippedAlreadyCertified: [], skippedIneligible: [], failed: [] };
+  const result: BatchGenerateResult = { totalEnrollments: enrollments.length, drafted: [], skippedAlreadyCertified: [], skippedIneligible: [], failed: [] };
 
   for (const enrollment of enrollments) {
     const candidate = await User.findById(enrollment.candidateUserId);
@@ -225,10 +272,61 @@ export async function generateCertificatesForBatch(input: {
         issuedByUserId: input.issuedByUserId,
         origin: input.origin,
         gates,
+        status: "draft",
       });
-      result.issued.push({ enrollmentId: enrollment.id, candidateName, certificateId: certificate.id, certificateNumber: certificate.certificateNumber });
+      result.drafted.push({ enrollmentId: enrollment.id, candidateName, certificateId: certificate.id, certificateNumber: certificate.certificateNumber });
     } catch (err) {
       result.failed.push({ enrollmentId: enrollment.id, candidateName, error: err instanceof Error ? err.message : "Unknown error" });
+    }
+  }
+
+  return result;
+}
+
+export interface BatchPublishResult {
+  totalDrafts: number;
+  published: { certificateId: string; candidateName: string; certificateNumber: string; emailDelivered: boolean }[];
+  failed: { certificateId: string; candidateName: string; error: string }[];
+}
+
+/** Flips every draft certificate in a batch to "issued": sends the candidate their certificate
+ * email, and marks the enrollment "certified" so it shows up on the candidate's dashboard. This is
+ * the deliberate second step an admin takes after reviewing/downloading the drafts from
+ * generateCertificatesForBatch — nothing reaches the candidate until this runs. */
+export async function publishCertificatesForBatch(input: {
+  projectId: string;
+  workshopId: string;
+  batchId: string;
+}): Promise<BatchPublishResult> {
+  const drafts = await Certificate.find({
+    projectId: input.projectId,
+    workshopId: input.workshopId,
+    batchId: input.batchId,
+    status: "draft",
+  });
+
+  const result: BatchPublishResult = { totalDrafts: drafts.length, published: [], failed: [] };
+
+  for (const certificate of drafts) {
+    const candidate = await User.findById(certificate.candidateUserId);
+    const candidateName = candidate?.fullName ?? "Unknown candidate";
+
+    try {
+      const workshop = await Workshop.findById(certificate.workshopId);
+
+      certificate.status = "issued";
+      await certificate.save();
+      await Enrollment.updateOne({ _id: certificate.enrollmentId }, { $set: { status: "certified" } });
+
+      const emailResult = await deliverCertificateEmail({ projectId: input.projectId, certificate, candidate, workshop });
+      result.published.push({
+        certificateId: certificate.id,
+        candidateName,
+        certificateNumber: certificate.certificateNumber,
+        emailDelivered: emailResult.delivered,
+      });
+    } catch (err) {
+      result.failed.push({ certificateId: certificate.id, candidateName, error: err instanceof Error ? err.message : "Unknown error" });
     }
   }
 
@@ -275,22 +373,34 @@ export async function revokeCertificate(input: { projectId: string; certificateI
   return certificate;
 }
 
-export async function listCertificates(projectId: string, filters: { workshopId?: string; candidateUserId?: string; status?: string }) {
+export async function listCertificates(projectId: string, filters: { workshopId?: string; batchId?: string; candidateUserId?: string; status?: string }) {
   const query: Record<string, unknown> = { projectId };
   if (filters.workshopId) query.workshopId = filters.workshopId;
+  if (filters.batchId) query.batchId = filters.batchId;
   if (filters.candidateUserId) query.candidateUserId = filters.candidateUserId;
   if (filters.status) query.status = filters.status;
   return Certificate.find(query).sort({ issueDate: -1 });
 }
 
 export async function getOwnCertificates(candidateUserId: string) {
-  return Certificate.find({ candidateUserId }).sort({ issueDate: -1 });
+  // Drafts aren't published yet — keep them off the candidate's own certificate list.
+  return Certificate.find({ candidateUserId, status: { $ne: "draft" } }).sort({ issueDate: -1 });
 }
 
-/** Public verification — no auth, no tenant context (verificationCode is globally unique). */
+/**
+ * Public verification — no auth, no tenant context. Accepts either the random verificationCode
+ * (from an old per-certificate QR) or the human-readable certificateNumber printed on the
+ * certificate itself (what a candidate types in on the /verify landing page). Drafts are excluded —
+ * they aren't published yet, so they shouldn't verify successfully.
+ */
 export async function verifyByCode(code: string) {
-  const certificate = await Certificate.findOne({ verificationCode: code });
-  if (!certificate) throw ApiError.notFound("No certificate matches this verification code");
+  const trimmed = code.trim();
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const certificate = await Certificate.findOne({
+    status: { $ne: "draft" },
+    $or: [{ verificationCode: trimmed }, { certificateNumber: { $regex: `^${escaped}$`, $options: "i" } }],
+  });
+  if (!certificate) throw ApiError.notFound("No certificate matches this ID");
 
   const [candidate, workshop, project, batch] = await Promise.all([
     User.findById(certificate.candidateUserId),
@@ -299,6 +409,21 @@ export async function verifyByCode(code: string) {
     Batch.findById(certificate.batchId),
   ]);
 
+  // "Organization" on the public verify page means the company/NGO the candidate registered
+  // under — not this platform's own tenant (Project). Prefer the staff-registered Organisation
+  // record, then a manually-typed affiliatedOrganisation, falling back to the project name only
+  // if the candidate has neither (e.g. an individual walk-in with no employer on file).
+  let organisationName: string | null = null;
+  if (candidate) {
+    const candidateProfile = await CandidateProfile.findOne({ userId: candidate._id });
+    if (candidateProfile?.organisationId) {
+      const organisation = await Organisation.findById(candidateProfile.organisationId);
+      organisationName = organisation?.name ?? null;
+    } else if (candidateProfile?.affiliatedOrganisation?.name) {
+      organisationName = candidateProfile.affiliatedOrganisation.name;
+    }
+  }
+
   return {
     certificateNumber: certificate.certificateNumber,
     status: certificate.status,
@@ -306,6 +431,6 @@ export async function verifyByCode(code: string) {
     candidateName: candidate?.fullName ?? "Unknown",
     workshopTitle: workshop?.title ?? "Unknown",
     batchName: batch?.name ?? null,
-    projectName: project?.name ?? "Unknown",
+    organisationName: organisationName ?? project?.name ?? "Unknown",
   };
 }

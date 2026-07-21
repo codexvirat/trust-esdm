@@ -30,9 +30,23 @@ export function CreateTemplateForm({ projectId }: { projectId: string }) {
       </div>
       {state.error && <p className="w-full text-sm text-red-700">{state.error}</p>}
       <p className="w-full text-xs text-slate-400">
-        Candidate name, certificate no., location, date, and verification QR are overlaid automatically using a default layout tuned for a
-        landscape certificate — upload the background exactly as it should look with those areas left blank.
+        Candidate name and certificate no. are always overlaid automatically using a default layout tuned for a landscape certificate —
+        upload the background exactly as it should look with those areas left blank.
       </p>
+      <div className="flex w-full flex-wrap gap-4">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="locationFilledIn" value="true" />
+          Location is already filled in on this background
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="dateFilledIn" value="true" />
+          Date is already filled in on this background
+        </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" name="qrFilledIn" value="true" />
+          Verification QR is already printed on this background
+        </label>
+      </div>
       <button type="submit" disabled={pending} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
         {pending ? "Uploading…" : "Create"}
       </button>
