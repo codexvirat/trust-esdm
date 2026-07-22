@@ -116,6 +116,24 @@ async function deliverCertificateEmail(input: {
   return emailResult;
 }
 
+/** Resolves the short code of the company/NGO a candidate is registered under — from the
+ * staff-curated Organisation record if they picked one, else a manually-typed affiliatedOrganisation
+ * — for prefixing their certificate number (e.g. "SVG0001"). Returns null for an individual
+ * candidate with no organisation on file, or one whose organisation has no short code set. */
+async function resolveCandidateOrganisationShortCode(candidateUserId: string): Promise<string | null> {
+  const profile = await CandidateProfile.findOne({ userId: candidateUserId });
+  if (!profile) return null;
+
+  if (profile.organisationId) {
+    const organisation = await Organisation.findById(profile.organisationId);
+    if (organisation?.shortCode?.trim()) return organisation.shortCode.trim().toUpperCase();
+  }
+  if (profile.affiliatedOrganisation?.shortCode?.trim()) {
+    return profile.affiliatedOrganisation.shortCode.trim().toUpperCase();
+  }
+  return null;
+}
+
 /**
  * Core single-enrollment issuance: gate check (unless precomputed), certificate number/verification
  * code, PDF render + write to disk, and the Enrollment update. Shared by the single-issue endpoint
@@ -148,7 +166,10 @@ async function issueCertificateCore(input: {
   ]);
 
   const seq = await getNextSequence(`certificate_seq_${projectId}`);
-  const certificateNumber = String(seq).padStart(4, "0");
+  const orgShortCode = candidate ? await resolveCandidateOrganisationShortCode(candidate.id) : null;
+  // The numeric part is always the same continuous, project-wide sequence — only the prefix
+  // changes, based on whichever company the candidate belongs to (plain number if none).
+  const certificateNumber = `${orgShortCode ?? ""}${String(seq).padStart(4, "0")}`;
   const verificationCode = crypto.randomBytes(8).toString("hex");
   // Static verification URL — every certificate's QR is byte-identical and just points at the
   // lookup landing page; the candidate types their certificate number in there themselves.
@@ -361,8 +382,10 @@ export async function discardDraftCertificatesForBatch(input: {
     }
     await Enrollment.updateOne({ _id: certificate.enrollmentId, certificateId: certificate._id }, { $set: { certificateId: null } });
     await Certificate.deleteOne({ _id: certificate._id });
-    const numeric = Number(certificate.certificateNumber);
-    if (Number.isFinite(numeric)) releasedNumbers.push(numeric);
+    // certificateNumber may carry a company short-code prefix (e.g. "SVG0001") — the sequence
+    // itself is always the trailing digit run, regardless of prefix.
+    const match = certificate.certificateNumber.match(/(\d+)$/);
+    if (match) releasedNumbers.push(Number(match[1]));
   }
 
   // Hand the discarded numbers back so the next generate reuses them instead of climbing past them.
