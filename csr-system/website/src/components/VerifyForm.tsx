@@ -22,7 +22,7 @@ export function VerifyForm() {
           id="certificateId"
           name="certificateId"
           required
-          placeholder="e.g. MAMH0001"
+          placeholder="e.g. ABCD0001"
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />

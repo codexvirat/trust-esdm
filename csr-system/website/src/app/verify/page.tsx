@@ -14,7 +14,7 @@ export default function VerifyLandingPage() {
             <div className="eyebrow">Certificate Verification</div>
             <h1 style={{ fontSize: "2rem" }}>Verify a certificate</h1>
             <p style={{ color: "var(--ink-soft)", marginTop: 8 }}>
-              Enter the full certificate number printed on the certificate (including the company code, e.g. MAMH0001) to check its
+              Enter the full certificate number printed on the certificate (including the company code, e.g. ABCD0001) to check its
               authenticity.
             </p>
             <VerifyForm />
