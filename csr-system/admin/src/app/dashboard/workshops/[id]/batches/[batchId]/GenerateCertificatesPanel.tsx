@@ -1,16 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   generateCertificatesForBatchAction,
   publishCertificatesForBatchAction,
+  discardDraftCertificatesForBatchAction,
   type GenerateBatchState,
   type PublishBatchState,
+  type DiscardDraftsState,
 } from "@/app/actions/certificates";
 import type { CertificateTemplate } from "@/lib/types";
 
 const initialGenerateState: GenerateBatchState = {};
 const initialPublishState: PublishBatchState = {};
+const initialDiscardState: DiscardDraftsState = {};
 
 export function GenerateCertificatesPanel({
   projectId,
@@ -26,13 +29,20 @@ export function GenerateCertificatesPanel({
   draftCount: number;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const discardFormRef = useRef<HTMLFormElement>(null);
   const boundGenerate = generateCertificatesForBatchAction.bind(null, projectId, workshopId, batchId);
   const [generateState, generateAction, generatePending] = useActionState(boundGenerate, initialGenerateState);
 
   const boundPublish = publishCertificatesForBatchAction.bind(null, projectId, workshopId, batchId);
   const [publishState, publishAction, publishPending] = useActionState(boundPublish, initialPublishState);
 
-  const pendingDraftCount = draftCount - (publishState.result?.published.length ?? 0);
+  const boundDiscard = discardDraftCertificatesForBatchAction.bind(null, projectId, workshopId, batchId);
+  const [discardState, discardAction, discardPending] = useActionState(boundDiscard, initialDiscardState);
+
+  // draftCount comes fresh from the server on every render — each action below calls
+  // revalidatePath, which makes Next.js refetch this page's data automatically, so there's no
+  // need (and no safe way, without risking double-counting) to adjust it with client-side deltas.
+  const pendingDraftCount = draftCount;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -89,7 +99,7 @@ export function GenerateCertificatesPanel({
       {templates.length === 0 && <p className="mt-2 text-xs text-amber-700">Create a certificate template first.</p>}
       {generateState.error && <p className="mt-3 text-sm text-red-700">{generateState.error}</p>}
 
-      {generateState.result && (
+      {generateState.result && !discardState.result && (
         <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm">
           <p className="font-medium text-slate-900">
             {generateState.result.drafted.length} drafted · {generateState.result.skippedIneligible.length} not yet eligible ·{" "}
@@ -132,19 +142,42 @@ export function GenerateCertificatesPanel({
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-amber-800">
               <strong>{pendingDraftCount}</strong> draft certificate{pendingDraftCount === 1 ? "" : "s"} waiting to be published —
-              review the downloaded PDFs, then publish to email candidates and show them on their dashboard.
+              review the downloaded PDFs. If they look wrong, discard and regenerate instead of publishing.
             </p>
-            <form action={publishAction}>
-              <button
-                type="submit"
-                disabled={publishPending}
-                className="shrink-0 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
-              >
-                {publishPending ? "Publishing…" : "Publish & Notify Candidates"}
-              </button>
-            </form>
+            <div className="flex shrink-0 gap-2">
+              <form ref={discardFormRef} action={discardAction}>
+                <button
+                  type="button"
+                  disabled={discardPending}
+                  onClick={() => {
+                    if (window.confirm(`Delete ${pendingDraftCount} draft certificate${pendingDraftCount === 1 ? "" : "s"}? This can't be undone — you'll need to generate again.`)) {
+                      discardFormRef.current?.requestSubmit();
+                    }
+                  }}
+                  className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {discardPending ? "Discarding…" : "Discard Drafts…"}
+                </button>
+              </form>
+              <form action={publishAction}>
+                <button
+                  type="submit"
+                  disabled={publishPending}
+                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {publishPending ? "Publishing…" : "Publish & Notify Candidates"}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
+      )}
+
+      {discardState.error && <p className="mt-3 text-sm text-red-700">{discardState.error}</p>}
+      {discardState.result && (
+        <p className="mt-3 text-sm text-slate-600">
+          Discarded {discardState.result.discarded} draft{discardState.result.discarded === 1 ? "" : "s"} — generate again above.
+        </p>
       )}
 
       {publishState.error && <p className="mt-3 text-sm text-red-700">{publishState.error}</p>}

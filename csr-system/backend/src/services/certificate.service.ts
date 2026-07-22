@@ -13,7 +13,7 @@ import { User, type UserAttrs, type UserMethods } from "../models/User";
 import { Project } from "../models/Project";
 import { CandidateProfile } from "../models/CandidateProfile";
 import { Organisation } from "../models/Organisation";
-import { getNextSequence } from "../models/Counter";
+import { getNextSequence, releaseSequenceNumbers } from "../models/Counter";
 import { ApiError } from "../utils/ApiError";
 import { sendNotification } from "./notification.service";
 import { sendCertificateIssuedEmail, sendCertificateRevokedEmail } from "./email.service";
@@ -333,6 +333,44 @@ export async function publishCertificatesForBatch(input: {
   return result;
 }
 
+/** Deletes every draft certificate in a batch (file + DB record) and clears the certificateId off
+ * each enrollment, so generateCertificatesForBatch no longer skips them as "already certified" —
+ * this is the "I reviewed the ZIP, the layout's wrong, let me redo it" escape hatch. Only ever
+ * touches drafts: once a certificate is published ("issued"), discarding is not offered — use
+ * revokeCertificate instead. */
+export async function discardDraftCertificatesForBatch(input: {
+  projectId: string;
+  workshopId: string;
+  batchId: string;
+}): Promise<{ discarded: number }> {
+  const drafts = await Certificate.find({
+    projectId: input.projectId,
+    workshopId: input.workshopId,
+    batchId: input.batchId,
+    status: "draft",
+  });
+
+  const releasedNumbers: number[] = [];
+  for (const certificate of drafts) {
+    if (certificate.fileUrl) {
+      try {
+        await fs.unlink(resolveUploadsPath(certificate.fileUrl));
+      } catch (err) {
+        console.error("[certificate] could not delete draft PDF file:", err);
+      }
+    }
+    await Enrollment.updateOne({ _id: certificate.enrollmentId, certificateId: certificate._id }, { $set: { certificateId: null } });
+    await Certificate.deleteOne({ _id: certificate._id });
+    const numeric = Number(certificate.certificateNumber);
+    if (Number.isFinite(numeric)) releasedNumbers.push(numeric);
+  }
+
+  // Hand the discarded numbers back so the next generate reuses them instead of climbing past them.
+  await releaseSequenceNumbers(`certificate_seq_${input.projectId}`, releasedNumbers);
+
+  return { discarded: drafts.length };
+}
+
 export async function revokeCertificate(input: { projectId: string; certificateId: string; reason: string; revokedBy: string }) {
   const certificate = await Certificate.findOne({ _id: input.certificateId, projectId: input.projectId });
   if (!certificate) throw ApiError.notFound("Certificate not found");
@@ -344,7 +382,13 @@ export async function revokeCertificate(input: { projectId: string; certificateI
   certificate.set("revokedBy", input.revokedBy);
   await certificate.save();
 
-  await Enrollment.updateOne({ _id: certificate.enrollmentId }, { $set: { status: "completed" } });
+  // Clear certificateId too, not just status — otherwise this enrollment would stay permanently
+  // stuck looking "already certified" to generateCertificatesForBatch/publishCertificatesForBatch,
+  // with no way to ever issue a fresh certificate for it again.
+  await Enrollment.updateOne(
+    { _id: certificate.enrollmentId, certificateId: certificate._id },
+    { $set: { status: "completed", certificateId: null } },
+  );
 
   const [candidate, workshop] = await Promise.all([
     User.findById(certificate.candidateUserId),

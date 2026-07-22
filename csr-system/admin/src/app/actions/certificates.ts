@@ -178,3 +178,28 @@ export async function publishCertificatesForBatchAction(
     return { error: err instanceof ApiError ? err.message : "Failed to publish certificates." };
   }
 }
+
+export interface DiscardDraftsState {
+  error?: string;
+  result?: { discarded: number };
+}
+
+export async function discardDraftCertificatesForBatchAction(
+  projectId: string,
+  workshopId: string,
+  batchId: string,
+  _prevState: DiscardDraftsState,
+): Promise<DiscardDraftsState> {
+  const { accessToken } = await requireAdminRole();
+
+  try {
+    const result = await apiFetch<{ discarded: number }>(
+      `/workshops/${workshopId}/batches/${batchId}/certificates/drafts?projectId=${projectId}`,
+      { method: "DELETE", accessToken },
+    );
+    revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+    return { result };
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to discard draft certificates." };
+  }
+}

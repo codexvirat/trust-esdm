@@ -90,3 +90,12 @@ batchRouter.post(
   requireWorkshopManagerAssignedToBatch,
   certificateController.publishForBatch,
 );
+
+// Deletes every draft certificate in the batch so they can be regenerated (e.g. wrong template
+// picked, layout needs fixing) — only touches drafts, never a published/issued certificate.
+batchRouter.delete(
+  "/:batchId/certificates/drafts",
+  requirePermission(PERMISSIONS.CERTIFICATE_ISSUE),
+  requireWorkshopManagerAssignedToBatch,
+  certificateController.discardDraftsForBatch,
+);

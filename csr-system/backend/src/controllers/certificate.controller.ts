@@ -44,6 +44,16 @@ export const publishForBatch = asyncHandler(async (req: Request, res: Response) 
   res.status(200).json(result);
 });
 
+export const discardDraftsForBatch = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const result = await service.discardDraftCertificatesForBatch({
+    projectId: resolveProjectId(req),
+    workshopId: req.params.workshopId as string,
+    batchId: req.params.batchId as string,
+  });
+  res.status(200).json(result);
+});
+
 export const revoke = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   const certificate = await service.revokeCertificate({
