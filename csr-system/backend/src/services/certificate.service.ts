@@ -148,7 +148,7 @@ async function issueCertificateCore(input: {
   ]);
 
   const seq = await getNextSequence(`certificate_seq_${projectId}`);
-  const certificateNumber = String(seq).padStart(2, "0");
+  const certificateNumber = String(seq).padStart(4, "0");
   const verificationCode = crypto.randomBytes(8).toString("hex");
   // Static verification URL — every certificate's QR is byte-identical and just points at the
   // lookup landing page; the candidate types their certificate number in there themselves.
