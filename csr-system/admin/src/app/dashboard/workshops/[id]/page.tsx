@@ -1,12 +1,10 @@
 import { notFound } from "next/navigation";
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { WorkshopSummary, Batch, TrainerAssignment, WorkshopManagerAssignment, UserSummary, Venue } from "@/lib/types";
-import { setWorkshopStatusAction } from "@/app/actions/workshops";
+import type { WorkshopSummary, Batch, Venue } from "@/lib/types";
 import { CreateBatchForm } from "./CreateBatchForm";
-import { EditWorkshopForm } from "./EditWorkshopForm";
 import { BatchItem } from "./BatchItem";
-import { WorkshopHeader, nextStatusActions } from "./WorkshopHeader";
+import { WorkshopHeader } from "./WorkshopHeader";
 
 export default async function WorkshopOverviewPage({
   params,
@@ -22,52 +20,17 @@ export default async function WorkshopOverviewPage({
 
   let workshop: WorkshopSummary;
   let batches: Batch[];
-  let trainers: UserSummary[];
-  let workshopManagers: UserSummary[];
   let venues: Venue[];
   try {
-    [workshop, batches, trainers, workshopManagers, venues] = await Promise.all([
+    [workshop, batches, venues] = await Promise.all([
       apiFetch<WorkshopSummary>(`/workshops/${id}?projectId=${projectId}`, { accessToken }),
       apiFetch<Batch[]>(`/workshops/${id}/batches?projectId=${projectId}`, { accessToken }),
-      apiFetch<UserSummary[]>(`/users?roleCode=trainer&projectId=${projectId}`, { accessToken }),
-      apiFetch<UserSummary[]>(`/users?roleCode=workshop_manager&projectId=${projectId}`, { accessToken }),
       apiFetch<Venue[]>(`/venues?projectId=${projectId}`, { accessToken }),
     ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-
-  const assignmentsByBatch = new Map(
-    await Promise.all(
-      batches.map(
-        async (batch) =>
-          [
-            batch._id,
-            await apiFetch<TrainerAssignment[]>(`/workshops/${id}/batches/${batch._id}/trainer-assignments?projectId=${projectId}`, {
-              accessToken,
-            }),
-          ] as const,
-      ),
-    ),
-  );
-
-  const workshopManagerAssignmentsByBatch = new Map(
-    await Promise.all(
-      batches.map(
-        async (batch) =>
-          [
-            batch._id,
-            await apiFetch<WorkshopManagerAssignment[]>(
-              `/workshops/${id}/batches/${batch._id}/workshop-manager-assignments?projectId=${projectId}`,
-              { accessToken },
-            ),
-          ] as const,
-      ),
-    ),
-  );
-
-  const nextActions = nextStatusActions(workshop.status);
 
   return (
     <div className="flex flex-col gap-6">
@@ -77,22 +40,6 @@ export default async function WorkshopOverviewPage({
         <Info label="Type" value={workshop.type} />
         <Info label="Mode" value={workshop.mode} />
         <Info label="Enrolled" value={`${workshop.enrolledCount}${workshop.capacity ? ` / ${workshop.capacity}` : ""}`} />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        {nextActions.map((action) => (
-          <form key={action.status} action={setWorkshopStatusAction.bind(null, projectId, workshop._id, action.status)}>
-            <button
-              type="submit"
-              className={`rounded-md px-4 py-2 text-sm font-medium transition ${
-                action.status === "cancelled" ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-slate-900 text-white hover:bg-slate-800"
-              }`}
-            >
-              {action.label}
-            </button>
-          </form>
-        ))}
-        <EditWorkshopForm workshop={workshop} projectId={projectId} />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -106,17 +53,7 @@ export default async function WorkshopOverviewPage({
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {batches.map((batch) => (
-              <BatchItem
-                key={batch._id}
-                projectId={projectId}
-                workshopId={workshop._id}
-                batch={batch}
-                assignments={assignmentsByBatch.get(batch._id) ?? []}
-                trainers={trainers}
-                workshopManagerAssignments={workshopManagerAssignmentsByBatch.get(batch._id) ?? []}
-                workshopManagers={workshopManagers}
-                venues={venues}
-              />
+              <BatchItem key={batch._id} projectId={projectId} workshopId={workshop._id} batch={batch} />
             ))}
           </div>
         )}

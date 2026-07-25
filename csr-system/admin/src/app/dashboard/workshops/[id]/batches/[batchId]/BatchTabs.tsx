@@ -3,15 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export function WorkshopTabs({ workshopId, projectId }: { workshopId: string; projectId: string }) {
+export function BatchTabs({ workshopId, batchId, projectId }: { workshopId: string; batchId: string; projectId: string }) {
   const pathname = usePathname();
-  const base = `/dashboard/workshops/${workshopId}`;
+  const base = `/dashboard/workshops/${workshopId}/batches/${batchId}`;
   const suffix = `?projectId=${projectId}`;
   const tabs = [
     { href: base, label: "Overview" },
-    { href: `${base}/assessments`, label: "Assessments" },
-    { href: `${base}/feedback`, label: "Feedback" },
-    { href: `${base}/results`, label: "Results" },
     { href: `${base}/manage`, label: "Manage" },
   ];
 

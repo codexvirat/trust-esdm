@@ -149,6 +149,8 @@ export async function setBatchStatusAction(projectId: string, workshopId: string
   const { accessToken } = await requireAdminRole();
   await apiFetch(`/workshops/${workshopId}/batches/${batchId}?projectId=${projectId}`, { method: "PATCH", accessToken, body: { status } });
   revalidatePath(`/dashboard/workshops/${workshopId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}/manage`);
 }
 
 export async function updateBatchVenueAction(projectId: string, workshopId: string, batchId: string, venueId: string): Promise<void> {
@@ -159,6 +161,8 @@ export async function updateBatchVenueAction(projectId: string, workshopId: stri
     body: { venueId: venueId || null },
   });
   revalidatePath(`/dashboard/workshops/${workshopId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}/manage`);
 }
 
 export async function deleteBatchAction(projectId: string, workshopId: string, batchId: string): Promise<void> {
@@ -192,6 +196,7 @@ export async function assignTrainerAction(
   }
 
   revalidatePath(`/dashboard/workshops/${workshopId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}/manage`);
   return {};
 }
 
@@ -207,6 +212,7 @@ export async function removeTrainerAssignmentAction(
     accessToken,
   });
   revalidatePath(`/dashboard/workshops/${workshopId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}/manage`);
 }
 
 export async function assignWorkshopManagerAction(
@@ -234,6 +240,7 @@ export async function assignWorkshopManagerAction(
   }
 
   revalidatePath(`/dashboard/workshops/${workshopId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}/manage`);
   return {};
 }
 
@@ -249,6 +256,7 @@ export async function removeWorkshopManagerAssignmentAction(
     accessToken,
   });
   revalidatePath(`/dashboard/workshops/${workshopId}`);
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}/manage`);
 }
 
 export interface UploadPhotoState {

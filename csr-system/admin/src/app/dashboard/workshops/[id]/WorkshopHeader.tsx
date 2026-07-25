@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { WorkshopSummary } from "@/lib/types";
 import { StatusPill } from "@/components/StatusPill";
-import { DeleteWorkshopButton } from "./DeleteWorkshopButton";
 import { WorkshopTabs } from "./WorkshopTabs";
 
 const NEXT_STATUS: Record<string, { label: string; status: WorkshopSummary["status"] }[]> = {
@@ -38,7 +37,6 @@ export function WorkshopHeader({ workshop, projectId }: { workshop: WorkshopSumm
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <StatusPill status={workshop.status} />
-            <DeleteWorkshopButton projectId={projectId} workshopId={workshop._id} workshopTitle={workshop.title} />
           </div>
         </div>
       </div>

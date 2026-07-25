@@ -24,6 +24,7 @@ import { BatchResultsPanel } from "./BatchResultsPanel";
 import { BatchPhotosPanel } from "./BatchPhotosPanel";
 import { DayPlanPanel } from "./DayPlanPanel";
 import { GenerateCertificatesPanel } from "./GenerateCertificatesPanel";
+import { BatchTabs } from "./BatchTabs";
 
 const DAY_PLAN_ASSIGNABLE_ROLES = new Set(["super_admin", "admin", "manager", "workshop_manager"]);
 
@@ -103,6 +104,8 @@ export default async function BatchDetailPage({
           {new Date(batch.startDate).toLocaleDateString()} – {new Date(batch.endDate).toLocaleDateString()} · {enrollments.length} enrolled
         </p>
       </div>
+
+      <BatchTabs workshopId={workshopId} batchId={batchId} projectId={projectId} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <AssessmentAssignPanel projectId={projectId} workshopId={workshopId} batchId={batchId} assessments={assessments} />
