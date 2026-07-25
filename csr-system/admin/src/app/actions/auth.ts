@@ -7,6 +7,7 @@ import type { SessionUser } from "@/lib/session";
 
 export interface LoginState {
   error?: string;
+  requiresProjectSlug?: boolean;
 }
 
 interface LoginResponse {
@@ -37,7 +38,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 409) {
-        return { error: "This email is used at more than one project — enter your project slug too." };
+        return { error: "This email is used at more than one project — enter your project slug too.", requiresProjectSlug: true };
       }
       return { error: err.message };
     }
