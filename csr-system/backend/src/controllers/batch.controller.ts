@@ -40,9 +40,10 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
 
 export const uploadPhoto = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
-  if (!req.file) throw ApiError.badRequest("A photo file is required");
-  const url = `${req.protocol}://${req.get("host")}/uploads/batch-photos/${req.file.filename}`;
-  const batch = await service.addBatchPhoto(resolveProjectId(req), req.params.workshopId as string, req.params.batchId as string, url);
+  const files = Array.isArray(req.files) ? req.files : [];
+  if (files.length === 0) throw ApiError.badRequest("At least one photo file is required");
+  const urls = files.map((file) => `${req.protocol}://${req.get("host")}/uploads/batch-photos/${file.filename}`);
+  const batch = await service.addBatchPhotos(resolveProjectId(req), req.params.workshopId as string, req.params.batchId as string, urls);
   res.status(201).json(batch);
 });
 

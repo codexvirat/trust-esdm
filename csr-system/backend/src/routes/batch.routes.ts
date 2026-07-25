@@ -31,7 +31,7 @@ batchRouter.post(
   "/:batchId/photos",
   requirePermission(PERMISSIONS.WORKSHOP_EDIT),
   requireWorkshopManagerAssignedToBatch,
-  uploadBatchPhoto.single("photo"),
+  uploadBatchPhoto.array("photos", 20),
   controller.uploadPhoto,
 );
 batchRouter.delete(

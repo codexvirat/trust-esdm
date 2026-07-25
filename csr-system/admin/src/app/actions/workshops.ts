@@ -263,14 +263,16 @@ export async function uploadBatchPhotoAction(
   formData: FormData,
 ): Promise<UploadPhotoState> {
   const { accessToken } = await requireAdminRole();
-  const file = formData.get("photo");
+  const files = formData.getAll("photos").filter((f): f is File => f instanceof File && f.size > 0);
 
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "Choose a photo to upload." };
+  if (files.length === 0) {
+    return { error: "Choose at least one photo to upload." };
   }
 
   const uploadBody = new FormData();
-  uploadBody.append("photo", file, file.name);
+  for (const file of files) {
+    uploadBody.append("photos", file, file.name);
+  }
 
   const res = await fetch(`${API_URL}/workshops/${workshopId}/batches/${batchId}/photos?projectId=${projectId}`, {
     method: "POST",

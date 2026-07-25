@@ -129,10 +129,10 @@ export async function getPublicBatchById(projectId: string, batchId: string) {
   };
 }
 
-export async function addBatchPhoto(projectId: string, workshopId: string, batchId: string, url: string) {
+export async function addBatchPhotos(projectId: string, workshopId: string, batchId: string, urls: string[]) {
   const batch = await Batch.findOneAndUpdate(
     { _id: batchId, projectId, workshopId },
-    { $push: { photos: { url } } },
+    { $push: { photos: { $each: urls.map((url) => ({ url })) } } },
     { new: true },
   );
   if (!batch) throw ApiError.notFound("Batch not found");

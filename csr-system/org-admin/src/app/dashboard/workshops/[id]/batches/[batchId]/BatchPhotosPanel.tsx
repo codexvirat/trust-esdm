@@ -21,13 +21,13 @@ export function BatchPhotosPanel({ workshopId, batchId, photos }: { workshopId: 
       </p>
 
       <form action={action} className="mt-4 flex flex-wrap items-center gap-3">
-        <input type="file" name="photo" accept="image/*" required className="text-sm" />
+        <input type="file" name="photos" accept="image/*" multiple required className="text-sm" />
         <button
           type="submit"
           disabled={pending}
           className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
         >
-          {pending ? "Uploading…" : "Upload photo"}
+          {pending ? "Uploading…" : "Upload photos"}
         </button>
         {state.error && <p className="w-full text-sm text-red-700">{state.error}</p>}
       </form>
