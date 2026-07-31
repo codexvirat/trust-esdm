@@ -73,7 +73,7 @@ export type AttemptStatus = (typeof ATTEMPT_STATUSES)[number];
 export const ATTEMPT_RESULTS = ["pass", "fail"] as const;
 export type AttemptResult = (typeof ATTEMPT_RESULTS)[number];
 
-export const FEEDBACK_QUESTION_TYPES = ["rating", "text", "nps"] as const;
+export const FEEDBACK_QUESTION_TYPES = ["rating", "text", "nps", "grid"] as const;
 export type FeedbackQuestionType = (typeof FEEDBACK_QUESTION_TYPES)[number];
 
 // draft = rendered and stored, but not yet emailed to the candidate or shown on their dashboard —

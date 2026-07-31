@@ -15,6 +15,7 @@ export async function createFeedbackQuestionAction(
     questionText: string;
     type: FeedbackQuestionType;
     required?: boolean;
+    rows?: string[];
     tags?: string[];
   },
 ): Promise<ActionResult> {

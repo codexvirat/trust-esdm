@@ -14,6 +14,7 @@ export function FeedbackQuestionRow({ projectId, question }: { projectId: string
           <p className="text-sm font-medium text-slate-900">{question.questionText}</p>
           <p className="mt-0.5 text-xs text-slate-400">
             {question.type} · {question.required ? "required" : "optional"}
+            {question.type === "grid" && question.rows && ` · ${question.rows.length} row${question.rows.length === 1 ? "" : "s"}`}
             {question.tags.length > 0 && ` · ${question.tags.join(", ")}`}
           </p>
         </div>

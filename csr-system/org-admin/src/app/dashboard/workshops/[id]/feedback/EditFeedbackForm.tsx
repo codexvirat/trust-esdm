@@ -1,26 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createFeedbackFormAction } from "@/app/actions/feedback";
-import type { FeedbackFormQuestion, FeedbackQuestionType } from "@/lib/types";
+import { updateFeedbackFormAction } from "@/app/actions/feedback";
+import type { FeedbackForm, FeedbackFormQuestion, FeedbackQuestionType } from "@/lib/types";
 
-function blankQuestion(): FeedbackFormQuestion {
-  return { questionText: "", type: "rating", required: true };
-}
-
-export function CreateFeedbackForm({ workshopId }: { workshopId: string }) {
-  const [open, setOpen] = useState(false);
-  const [questions, setQuestions] = useState<FeedbackFormQuestion[]>([blankQuestion()]);
+export function EditFeedbackForm({ workshopId, form, onDone }: { workshopId: string; form: FeedbackForm; onDone: () => void }) {
+  const [questions, setQuestions] = useState<FeedbackFormQuestion[]>(form.questions);
   const [error, setError] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
-
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-        + New feedback form
-      </button>
-    );
-  }
 
   function update(index: number, patch: Partial<FeedbackFormQuestion>) {
     setQuestions((qs) => qs.map((q, i) => (i === index ? { ...q, ...patch } : q)));
@@ -29,28 +16,20 @@ export function CreateFeedbackForm({ workshopId }: { workshopId: string }) {
   function submit() {
     setError(undefined);
     startTransition(async () => {
-      const result = await createFeedbackFormAction(workshopId, questions);
+      const result = await updateFeedbackFormAction(workshopId, form._id, questions);
       if (result.error) {
         setError(result.error);
       } else {
-        setOpen(false);
-        setQuestions([blankQuestion()]);
+        onDone();
       }
     });
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-slate-900">New feedback form</h2>
-        <button type="button" onClick={() => setOpen(false)} className="text-sm text-slate-400 hover:text-slate-700">
-          Cancel
-        </button>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-3">
+    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="flex flex-col gap-3">
         {questions.map((q, index) => (
-          <div key={index} className="flex flex-col gap-2 rounded-md border border-slate-100 p-2">
+          <div key={index} className="flex flex-col gap-2 rounded-md border border-slate-200 bg-white p-2">
             <div className="flex items-center gap-2">
               <input
                 value={q.questionText}
@@ -90,32 +69,38 @@ export function CreateFeedbackForm({ workshopId }: { workshopId: string }) {
                       .filter(Boolean),
                   })
                 }
-                placeholder={"One topic per line, e.g.\nLeadership & Business Growth\nLean Manufacturing\nQuality Management"}
+                placeholder={"One topic per line"}
                 rows={4}
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             )}
           </div>
         ))}
+
         <button
           type="button"
-          onClick={() => setQuestions((qs) => [...qs, blankQuestion()])}
-          className="self-start rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          onClick={() => setQuestions((qs) => [...qs, { questionText: "", type: "rating", required: true }])}
+          className="self-start rounded-md border border-dashed border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-white"
         >
           + Add question
         </button>
       </div>
 
-      {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <button
-        type="button"
-        disabled={pending}
-        onClick={submit}
-        className="mt-4 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pending ? "Creating…" : "Create feedback form"}
-      </button>
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={pending || questions.length === 0}
+          onClick={submit}
+          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {pending ? "Saving…" : "Save changes"}
+        </button>
+        <button type="button" onClick={onDone} className="text-sm text-slate-500 hover:text-slate-800">
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }

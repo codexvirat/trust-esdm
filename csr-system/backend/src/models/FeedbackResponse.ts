@@ -2,7 +2,7 @@ import { Schema, model, type InferSchemaType } from "mongoose";
 import { applyBasePlugin } from "./plugins/basePlugin";
 
 const answerSchema = new Schema(
-  { questionIndex: { type: Number, required: true }, ratingValue: Number, textValue: String },
+  { questionIndex: { type: Number, required: true }, ratingValue: Number, textValue: String, gridValues: { type: [Number], default: undefined } },
   { _id: false },
 );
 

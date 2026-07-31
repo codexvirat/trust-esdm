@@ -6,6 +6,7 @@ const feedbackQuestionBankSchema = new Schema({
   questionText: { type: String, required: true },
   type: { type: String, enum: FEEDBACK_QUESTION_TYPES, required: true },
   required: { type: Boolean, default: true },
+  rows: { type: [String], default: undefined },
   tags: { type: [String], default: [] },
   createdByUserId: { type: Schema.Types.ObjectId, ref: "User", required: true },
 });

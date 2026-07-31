@@ -1,5 +1,6 @@
 import { FeedbackForm } from "../models/FeedbackForm";
 import { FeedbackQuestionBank } from "../models/FeedbackQuestionBank";
+import { FeedbackResponse } from "../models/FeedbackResponse";
 import { Workshop } from "../models/Workshop";
 import { ApiError } from "../utils/ApiError";
 
@@ -8,6 +9,7 @@ interface InlineFeedbackQuestion {
   questionText: string;
   type: string;
   required?: boolean;
+  rows?: string[];
 }
 
 async function buildQuestionSnapshot(projectId: string, questions?: InlineFeedbackQuestion[], feedbackQuestionBankIds?: string[]) {
@@ -24,6 +26,7 @@ async function buildQuestionSnapshot(projectId: string, questions?: InlineFeedba
         questionText: q.questionText,
         type: q.type,
         required: q.required,
+        rows: q.rows ?? undefined,
       });
     }
   }
@@ -67,9 +70,32 @@ export async function getFormById(projectId: string, workshopId: string, formId:
   return form;
 }
 
-export async function updateFeedbackForm(projectId: string, workshopId: string, formId: string, updates: Record<string, unknown>, updatedBy: string) {
-  const form = await FeedbackForm.findOneAndUpdate({ _id: formId, projectId, workshopId }, { $set: { ...updates, updatedBy } }, { new: true });
-  if (!form) throw ApiError.notFound("Feedback form not found");
+export async function updateFeedbackForm(
+  projectId: string,
+  workshopId: string,
+  formId: string,
+  updates: { title?: string; batchId?: string | null; questions?: InlineFeedbackQuestion[]; feedbackQuestionBankIds?: string[] },
+  updatedBy: string,
+) {
+  const form = await getFormById(projectId, workshopId, formId);
+
+  const patch: Record<string, unknown> = { updatedBy };
+  if (updates.title !== undefined) patch.title = updates.title;
+  if (updates.batchId !== undefined) patch.batchId = updates.batchId;
+
+  if (updates.questions || updates.feedbackQuestionBankIds) {
+    // Editing questions on a form candidates have already responded to would silently change
+    // what their stored answers refer to — same "lock once attempted" rule as Assessment.
+    const responseExists = await FeedbackResponse.exists({ feedbackFormId: form.id });
+    if (responseExists) {
+      throw ApiError.conflict("This feedback form already has responses — questions are locked");
+    }
+    patch.questions = await buildQuestionSnapshot(projectId, updates.questions, updates.feedbackQuestionBankIds);
+    patch.version = (form.version ?? 1) + 1;
+  }
+
+  Object.assign(form, patch);
+  await form.save();
   return form;
 }
 

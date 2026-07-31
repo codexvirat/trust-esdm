@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { submitFeedbackAction } from "@/app/actions/feedback";
 import type { FeedbackForm } from "@/lib/types";
 
-type AnswerState = Record<number, { ratingValue?: number; textValue?: string }>;
+type AnswerState = Record<number, { ratingValue?: number; textValue?: string; gridValues?: number[] }>;
 
 export function FeedbackFormClient({
   workshopId,
@@ -31,6 +31,14 @@ export function FeedbackFormClient({
     setAnswers((prev) => ({ ...prev, [index]: { ...prev[index], textValue: value } }));
   }
 
+  function setGridValue(index: number, rowIndex: number, value: number) {
+    setAnswers((prev) => {
+      const gridValues = [...(prev[index]?.gridValues ?? [])];
+      gridValues[rowIndex] = value;
+      return { ...prev, [index]: { ...prev[index], gridValues } };
+    });
+  }
+
   function submit() {
     setError(undefined);
 
@@ -38,6 +46,7 @@ export function FeedbackFormClient({
       if (!q.required) return false;
       const a = answers[i];
       if (q.type === "text") return !a?.textValue?.trim();
+      if (q.type === "grid") return (q.rows ?? []).some((_, rowIndex) => a?.gridValues?.[rowIndex] === undefined);
       return a?.ratingValue === undefined;
     });
     if (missing) {
@@ -50,6 +59,7 @@ export function FeedbackFormClient({
         questionIndex: Number(questionIndex),
         ratingValue: a.ratingValue,
         textValue: a.textValue,
+        gridValues: a.gridValues,
       })),
     };
 
@@ -100,6 +110,43 @@ export function FeedbackFormClient({
               rows={3}
               className="mt-3 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
             />
+          )}
+
+          {q.type === "grid" && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[420px] border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left font-medium text-slate-500"></th>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <th key={n} className="px-2 pb-1 text-center text-xs font-medium text-slate-500">
+                        {n}
+                        {n === 1 && <div className="font-normal text-slate-400">Poor</div>}
+                        {n === 5 && <div className="font-normal text-slate-400">Excellent</div>}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(q.rows ?? []).map((row, rowIndex) => (
+                    <tr key={rowIndex} className="border-t border-slate-100">
+                      <td className="py-2 pr-3 text-slate-700">{row}</td>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <td key={n} className="px-2 text-center">
+                          <input
+                            type="radio"
+                            name={`grid-${i}-${rowIndex}`}
+                            checked={answers[i]?.gridValues?.[rowIndex] === n}
+                            onChange={() => setGridValue(i, rowIndex, n)}
+                            className="h-4 w-4 accent-teal-700"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       ))}

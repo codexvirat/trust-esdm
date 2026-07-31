@@ -88,12 +88,13 @@ export interface AssessmentAttempt {
   submittedAt?: string | null;
 }
 
-export type FeedbackQuestionType = "rating" | "text" | "nps";
+export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid";
 
 export interface FeedbackFormQuestion {
   questionText: string;
   type: FeedbackQuestionType;
   required: boolean;
+  rows?: string[];
 }
 
 export interface FeedbackForm {
@@ -107,7 +108,7 @@ export interface FeedbackForm {
 export interface FeedbackResponse {
   _id: string;
   feedbackFormId: string;
-  answers: { questionIndex: number; ratingValue?: number; textValue?: string }[];
+  answers: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[] }[];
   submittedAt: string;
 }
 

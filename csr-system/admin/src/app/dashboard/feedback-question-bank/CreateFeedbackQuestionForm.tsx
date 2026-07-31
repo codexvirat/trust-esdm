@@ -10,6 +10,7 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
   const [type, setType] = useState<FeedbackQuestionType>("rating");
   const [required, setRequired] = useState(true);
   const [tags, setTags] = useState("");
+  const [rowsText, setRowsText] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
 
@@ -28,6 +29,13 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
         questionText,
         type,
         required,
+        rows:
+          type === "grid"
+            ? rowsText
+                .split("\n")
+                .map((r) => r.trim())
+                .filter(Boolean)
+            : undefined,
         tags: tags
           .split(",")
           .map((t) => t.trim())
@@ -40,6 +48,7 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
         setQuestionText("");
         setTags("");
         setRequired(true);
+        setRowsText("");
       }
     });
   }
@@ -65,6 +74,7 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
             <option value="rating">Rating (0-5)</option>
             <option value="nps">NPS</option>
             <option value="text">Free text</option>
+            <option value="grid">Multiple choice grid (1-5)</option>
           </select>
           <label className="flex items-center gap-1 text-xs text-slate-600">
             <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />
@@ -77,6 +87,15 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
             className="flex-1 rounded-md border border-slate-300 px-2 py-2 text-sm"
           />
         </div>
+        {type === "grid" && (
+          <textarea
+            value={rowsText}
+            onChange={(e) => setRowsText(e.target.value)}
+            placeholder={"One topic per line, e.g.\nLeadership & Business Growth\nLean Manufacturing\nQuality Management"}
+            rows={4}
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+        )}
       </div>
 
       {error && <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

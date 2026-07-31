@@ -189,6 +189,7 @@ export interface Batch {
   photos?: BatchPhoto[];
   dayPlan?: DayPlanEntry[];
   status: BatchStatus;
+  isLocked?: boolean;
 }
 
 export type TrainerAssignmentRole = "lead" | "co_trainer";
@@ -302,13 +303,14 @@ export interface AssessmentAttempt {
   submittedAt?: string | null;
 }
 
-export type FeedbackQuestionType = "rating" | "text" | "nps";
+export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid";
 
 export interface FeedbackFormQuestion {
   feedbackQuestionBankId?: string | null;
   questionText: string;
   type: FeedbackQuestionType;
   required: boolean;
+  rows?: string[];
 }
 
 export interface FeedbackBankQuestion {
@@ -316,6 +318,7 @@ export interface FeedbackBankQuestion {
   questionText: string;
   type: FeedbackQuestionType;
   required: boolean;
+  rows?: string[];
   tags: string[];
 }
 

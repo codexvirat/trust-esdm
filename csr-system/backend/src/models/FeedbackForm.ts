@@ -11,6 +11,8 @@ const feedbackQuestionSchema = new Schema(
     questionText: { type: String, required: true },
     type: { type: String, enum: FEEDBACK_QUESTION_TYPES, required: true },
     required: { type: Boolean, default: true },
+    // Only used by "grid" questions: the row labels (topics) rated on the shared 1-5 scale.
+    rows: { type: [String], default: undefined },
   },
   { _id: false },
 );

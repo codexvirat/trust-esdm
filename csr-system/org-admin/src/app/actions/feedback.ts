@@ -17,12 +17,34 @@ export async function createFeedbackFormAction(workshopId: string, questions: Fe
   }
   for (const q of questions) {
     if (!q.questionText.trim()) return { error: "Every question needs text." };
+    if (q.type === "grid" && (!q.rows || q.rows.length === 0)) return { error: "Grid questions need at least one row." };
   }
 
   try {
     await apiFetch<FeedbackForm>(`/workshops/${workshopId}/feedback-forms`, { method: "POST", accessToken, body: { questions } });
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "Failed to create feedback form." };
+  }
+
+  revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
+  return {};
+}
+
+export async function updateFeedbackFormAction(workshopId: string, formId: string, questions: FeedbackFormQuestion[]): Promise<ActionResult> {
+  const { accessToken } = await requireOrgAdminRole();
+
+  if (questions.length === 0) {
+    return { error: "Add at least one question." };
+  }
+  for (const q of questions) {
+    if (!q.questionText.trim()) return { error: "Every question needs text." };
+    if (q.type === "grid" && (!q.rows || q.rows.length === 0)) return { error: "Grid questions need at least one row." };
+  }
+
+  try {
+    await apiFetch<FeedbackForm>(`/workshops/${workshopId}/feedback-forms/${formId}`, { method: "PATCH", accessToken, body: { questions } });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to update feedback form." };
   }
 
   revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);

@@ -256,12 +256,13 @@ export interface AssessmentAttempt {
   submittedAt?: string | null;
 }
 
-export type FeedbackQuestionType = "rating" | "text" | "nps";
+export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid";
 
 export interface FeedbackFormQuestion {
   questionText: string;
   type: FeedbackQuestionType;
   required: boolean;
+  rows?: string[];
 }
 
 export interface FeedbackForm {

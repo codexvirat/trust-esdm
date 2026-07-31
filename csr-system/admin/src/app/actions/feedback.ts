@@ -26,6 +26,7 @@ export async function createFeedbackFormAction(
   }
   for (const q of questions) {
     if (!q.questionText.trim()) return { error: "Every question needs text." };
+    if (q.type === "grid" && (!q.rows || q.rows.length === 0)) return { error: "Grid questions need at least one row." };
   }
 
   try {
@@ -36,6 +37,40 @@ export async function createFeedbackFormAction(
     });
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "Failed to create feedback form." };
+  }
+
+  revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
+  return {};
+}
+
+export async function updateFeedbackFormAction(
+  projectId: string,
+  workshopId: string,
+  formId: string,
+  title: string,
+  questions: FeedbackFormQuestion[],
+): Promise<ActionResult> {
+  const { accessToken } = await requireAdminRole();
+
+  if (!title.trim()) {
+    return { error: "Title is required." };
+  }
+  if (questions.length === 0) {
+    return { error: "Add at least one question." };
+  }
+  for (const q of questions) {
+    if (!q.questionText.trim()) return { error: "Every question needs text." };
+    if (q.type === "grid" && (!q.rows || q.rows.length === 0)) return { error: "Grid questions need at least one row." };
+  }
+
+  try {
+    await apiFetch<FeedbackForm>(`/workshops/${workshopId}/feedback-forms/${formId}?projectId=${projectId}`, {
+      method: "PATCH",
+      accessToken,
+      body: { title, questions },
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to update feedback form." };
   }
 
   revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
