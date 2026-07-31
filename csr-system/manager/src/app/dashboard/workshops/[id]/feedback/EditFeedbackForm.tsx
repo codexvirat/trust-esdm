@@ -15,8 +15,13 @@ export function EditFeedbackForm({ workshopId, form, onDone }: { workshopId: str
 
   function submit() {
     setError(undefined);
+    const cleaned = questions.map((q) => {
+      if (q.type === "grid") return { ...q, rows: (q.rows ?? []).map((r) => r.trim()).filter(Boolean) };
+      if (q.type === "mcq") return { ...q, options: (q.options ?? []).map((o) => o.trim()).filter(Boolean) };
+      return q;
+    });
     startTransition(async () => {
-      const result = await updateFeedbackFormAction(workshopId, form._id, questions);
+      const result = await updateFeedbackFormAction(workshopId, form._id, cleaned);
       if (result.error) {
         setError(result.error);
       } else {
@@ -46,6 +51,7 @@ export function EditFeedbackForm({ workshopId, form, onDone }: { workshopId: str
                 <option value="nps">NPS</option>
                 <option value="text">Free text</option>
                 <option value="grid">Multiple choice grid (1-5)</option>
+                <option value="mcq">Multiple choice (options)</option>
               </select>
               <label className="flex items-center gap-1 text-xs text-slate-600">
                 <input type="checkbox" checked={q.required} onChange={(e) => update(index, { required: e.target.checked })} />
@@ -73,6 +79,33 @@ export function EditFeedbackForm({ workshopId, form, onDone }: { workshopId: str
                 rows={4}
                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
+            )}
+            {q.type === "mcq" && (
+              <>
+                <textarea
+                  value={(q.options ?? []).join("\n")}
+                  onChange={(e) => update(index, { options: e.target.value.split("\n") })}
+                  onBlur={(e) =>
+                    update(index, {
+                      options: e.target.value
+                        .split("\n")
+                        .map((o) => o.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder={"One option per line"}
+                  rows={4}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+                <label className="flex items-center gap-1 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={q.allowMultiple ?? false}
+                    onChange={(e) => update(index, { allowMultiple: e.target.checked })}
+                  />
+                  Allow selecting multiple options (checkboxes instead of single-select)
+                </label>
+              </>
             )}
           </div>
         ))}

@@ -9,7 +9,7 @@ export interface ActionResult {
 }
 
 export interface SubmitFeedbackPayload {
-  answers: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[] }[];
+  answers: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[]; selectedOptions?: string[] }[];
 }
 
 export async function submitFeedbackAction(

@@ -13,6 +13,9 @@ const feedbackQuestionSchema = new Schema(
     required: { type: Boolean, default: true },
     // Only used by "grid" questions: the row labels (topics) rated on the shared 1-5 scale.
     rows: { type: [String], default: undefined },
+    // Only used by "mcq" questions: the answer choices, and whether more than one can be picked.
+    options: { type: [String], default: undefined },
+    allowMultiple: { type: Boolean, default: false },
   },
   { _id: false },
 );

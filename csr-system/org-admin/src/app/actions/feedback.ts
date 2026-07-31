@@ -18,6 +18,7 @@ export async function createFeedbackFormAction(workshopId: string, questions: Fe
   for (const q of questions) {
     if (!q.questionText.trim()) return { error: "Every question needs text." };
     if (q.type === "grid" && (!q.rows || q.rows.length === 0)) return { error: "Grid questions need at least one row." };
+    if (q.type === "mcq" && (!q.options || q.options.length < 2)) return { error: "Multiple choice questions need at least two options." };
   }
 
   try {
@@ -39,6 +40,7 @@ export async function updateFeedbackFormAction(workshopId: string, formId: strin
   for (const q of questions) {
     if (!q.questionText.trim()) return { error: "Every question needs text." };
     if (q.type === "grid" && (!q.rows || q.rows.length === 0)) return { error: "Grid questions need at least one row." };
+    if (q.type === "mcq" && (!q.options || q.options.length < 2)) return { error: "Multiple choice questions need at least two options." };
   }
 
   try {

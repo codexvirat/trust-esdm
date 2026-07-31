@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { submitFeedbackAction } from "@/app/actions/feedback";
 import type { FeedbackForm } from "@/lib/types";
 
-type AnswerState = Record<number, { ratingValue?: number; textValue?: string; gridValues?: number[] }>;
+type AnswerState = Record<number, { ratingValue?: number; textValue?: string; gridValues?: number[]; selectedOptions?: string[] }>;
 
 export function FeedbackFormClient({
   workshopId,
@@ -39,6 +39,17 @@ export function FeedbackFormClient({
     });
   }
 
+  function toggleOption(index: number, option: string, allowMultiple: boolean) {
+    setAnswers((prev) => {
+      const current = prev[index]?.selectedOptions ?? [];
+      if (!allowMultiple) {
+        return { ...prev, [index]: { ...prev[index], selectedOptions: [option] } };
+      }
+      const selectedOptions = current.includes(option) ? current.filter((o) => o !== option) : [...current, option];
+      return { ...prev, [index]: { ...prev[index], selectedOptions } };
+    });
+  }
+
   function submit() {
     setError(undefined);
 
@@ -47,6 +58,7 @@ export function FeedbackFormClient({
       const a = answers[i];
       if (q.type === "text") return !a?.textValue?.trim();
       if (q.type === "grid") return (q.rows ?? []).some((_, rowIndex) => a?.gridValues?.[rowIndex] === undefined);
+      if (q.type === "mcq") return !a?.selectedOptions || a.selectedOptions.length === 0;
       return a?.ratingValue === undefined;
     });
     if (missing) {
@@ -60,6 +72,7 @@ export function FeedbackFormClient({
         ratingValue: a.ratingValue,
         textValue: a.textValue,
         gridValues: a.gridValues,
+        selectedOptions: a.selectedOptions,
       })),
     };
 
@@ -146,6 +159,26 @@ export function FeedbackFormClient({
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {q.type === "mcq" && (
+            <div className="mt-3 flex flex-col gap-2">
+              {(q.options ?? []).map((option, optionIndex) => {
+                const selected = (answers[i]?.selectedOptions ?? []).includes(option);
+                return (
+                  <label key={optionIndex} className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type={q.allowMultiple ? "checkbox" : "radio"}
+                      name={q.allowMultiple ? undefined : `mcq-${i}`}
+                      checked={selected}
+                      onChange={() => toggleOption(i, option, Boolean(q.allowMultiple))}
+                      className="h-4 w-4 accent-teal-700"
+                    />
+                    {option}
+                  </label>
+                );
+              })}
             </div>
           )}
         </div>

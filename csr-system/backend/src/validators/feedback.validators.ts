@@ -3,15 +3,21 @@ import { FEEDBACK_QUESTION_TYPES } from "../types/enums";
 
 const inlineFeedbackQuestionSchema = z
   .object({
-    feedbackQuestionBankId: z.string().optional(),
+    feedbackQuestionBankId: z.string().nullable().optional(),
     questionText: z.string().min(2),
     type: z.enum(FEEDBACK_QUESTION_TYPES),
     required: z.boolean().optional(),
     rows: z.array(z.string().min(1)).optional(),
+    options: z.array(z.string().min(1)).optional(),
+    allowMultiple: z.boolean().optional(),
   })
   .refine((q) => q.type !== "grid" || (q.rows && q.rows.length >= 1), {
     message: "Grid questions need at least one row",
     path: ["rows"],
+  })
+  .refine((q) => q.type !== "mcq" || (q.options && q.options.length >= 2), {
+    message: "Multiple choice questions need at least two options",
+    path: ["options"],
   });
 
 export const createFeedbackFormSchema = z.object({
@@ -51,6 +57,8 @@ export const submitFeedbackSchema = z.object({
           textValue: z.string().optional(),
           // One entry per row of a "grid" question, aligned by index to the question's rows.
           gridValues: z.array(z.number().min(1).max(5)).optional(),
+          // Chosen option text(s) for an "mcq" question.
+          selectedOptions: z.array(z.string()).optional(),
         }),
       )
       .optional(),

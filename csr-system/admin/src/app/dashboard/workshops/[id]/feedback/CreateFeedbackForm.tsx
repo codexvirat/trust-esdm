@@ -44,8 +44,13 @@ export function CreateFeedbackForm({
 
   function submit() {
     setError(undefined);
+    const cleaned = questions.map((q) => {
+      if (q.type === "grid") return { ...q, rows: (q.rows ?? []).map((r) => r.trim()).filter(Boolean) };
+      if (q.type === "mcq") return { ...q, options: (q.options ?? []).map((o) => o.trim()).filter(Boolean) };
+      return q;
+    });
     startTransition(async () => {
-      const result = await createFeedbackFormAction(projectId, workshopId, title, questions, selectedBankIds);
+      const result = await createFeedbackFormAction(projectId, workshopId, title, cleaned, selectedBankIds);
       if (result.error) {
         setError(result.error);
       } else {
@@ -86,29 +91,77 @@ export function CreateFeedbackForm({
         </div>
 
         {questions.map((q, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <input
-              value={q.questionText}
-              onChange={(e) => update(index, { questionText: e.target.value })}
-              placeholder={`Question ${index + 1}`}
-              className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-            <select
-              value={q.type}
-              onChange={(e) => update(index, { type: e.target.value as FeedbackQuestionType })}
-              className="rounded-md border border-slate-300 px-2 py-2 text-sm"
-            >
-              <option value="rating">Rating (0-5)</option>
-              <option value="nps">NPS</option>
-              <option value="text">Free text</option>
-            </select>
-            <label className="flex items-center gap-1 text-xs text-slate-600">
-              <input type="checkbox" checked={q.required} onChange={(e) => update(index, { required: e.target.checked })} />
-              Required
-            </label>
-            <button type="button" onClick={() => setQuestions((qs) => qs.filter((_, i) => i !== index))} className="text-sm text-red-600 hover:bg-red-50 rounded-md px-2 py-2">
-              Remove
-            </button>
+          <div key={index} className="flex flex-col gap-2 rounded-md border border-slate-100 p-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={q.questionText}
+                onChange={(e) => update(index, { questionText: e.target.value })}
+                placeholder={`Question ${index + 1}`}
+                className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+              <select
+                value={q.type}
+                onChange={(e) => update(index, { type: e.target.value as FeedbackQuestionType })}
+                className="rounded-md border border-slate-300 px-2 py-2 text-sm"
+              >
+                <option value="rating">Rating (0-5)</option>
+                <option value="nps">NPS</option>
+                <option value="text">Free text</option>
+                <option value="grid">Multiple choice grid (1-5)</option>
+                <option value="mcq">Multiple choice (options)</option>
+              </select>
+              <label className="flex items-center gap-1 text-xs text-slate-600">
+                <input type="checkbox" checked={q.required} onChange={(e) => update(index, { required: e.target.checked })} />
+                Required
+              </label>
+              <button type="button" onClick={() => setQuestions((qs) => qs.filter((_, i) => i !== index))} className="text-sm text-red-600 hover:bg-red-50 rounded-md px-2 py-2">
+                Remove
+              </button>
+            </div>
+            {q.type === "grid" && (
+              <textarea
+                value={(q.rows ?? []).join("\n")}
+                onChange={(e) => update(index, { rows: e.target.value.split("\n") })}
+                onBlur={(e) =>
+                  update(index, {
+                    rows: e.target.value
+                      .split("\n")
+                      .map((r) => r.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder={"One topic per line, e.g.\nLeadership & Business Growth\nLean Manufacturing\nQuality Management"}
+                rows={4}
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+            )}
+            {q.type === "mcq" && (
+              <>
+                <textarea
+                  value={(q.options ?? []).join("\n")}
+                  onChange={(e) => update(index, { options: e.target.value.split("\n") })}
+                  onBlur={(e) =>
+                    update(index, {
+                      options: e.target.value
+                        .split("\n")
+                        .map((o) => o.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder={"One option per line, e.g.\nStrongly agree\nAgree\nDisagree\nStrongly disagree"}
+                  rows={4}
+                  className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+                <label className="flex items-center gap-1 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={q.allowMultiple ?? false}
+                    onChange={(e) => update(index, { allowMultiple: e.target.checked })}
+                  />
+                  Allow selecting multiple options (checkboxes instead of single-select)
+                </label>
+              </>
+            )}
           </div>
         ))}
 

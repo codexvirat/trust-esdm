@@ -10,6 +10,8 @@ interface InlineFeedbackQuestion {
   type: string;
   required?: boolean;
   rows?: string[];
+  options?: string[];
+  allowMultiple?: boolean;
 }
 
 async function buildQuestionSnapshot(projectId: string, questions?: InlineFeedbackQuestion[], feedbackQuestionBankIds?: string[]) {
@@ -27,6 +29,8 @@ async function buildQuestionSnapshot(projectId: string, questions?: InlineFeedba
         type: q.type,
         required: q.required,
         rows: q.rows ?? undefined,
+        options: q.options ?? undefined,
+        allowMultiple: q.allowMultiple ?? undefined,
       });
     }
   }

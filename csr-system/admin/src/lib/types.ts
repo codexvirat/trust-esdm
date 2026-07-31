@@ -303,7 +303,7 @@ export interface AssessmentAttempt {
   submittedAt?: string | null;
 }
 
-export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid";
+export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid" | "mcq";
 
 export interface FeedbackFormQuestion {
   feedbackQuestionBankId?: string | null;
@@ -311,6 +311,8 @@ export interface FeedbackFormQuestion {
   type: FeedbackQuestionType;
   required: boolean;
   rows?: string[];
+  options?: string[];
+  allowMultiple?: boolean;
 }
 
 export interface FeedbackBankQuestion {
@@ -319,6 +321,8 @@ export interface FeedbackBankQuestion {
   type: FeedbackQuestionType;
   required: boolean;
   rows?: string[];
+  options?: string[];
+  allowMultiple?: boolean;
   tags: string[];
 }
 

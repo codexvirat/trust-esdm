@@ -9,7 +9,7 @@ export async function submitFeedback(input: {
   formId: string;
   candidateUserId: string;
   trainerId?: string;
-  answers?: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[] }[];
+  answers?: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[]; selectedOptions?: string[] }[];
   courseRating?: number;
   trainerRating?: number;
   comments?: string;

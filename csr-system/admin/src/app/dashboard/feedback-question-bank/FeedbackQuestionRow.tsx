@@ -15,6 +15,9 @@ export function FeedbackQuestionRow({ projectId, question }: { projectId: string
           <p className="mt-0.5 text-xs text-slate-400">
             {question.type} · {question.required ? "required" : "optional"}
             {question.type === "grid" && question.rows && ` · ${question.rows.length} row${question.rows.length === 1 ? "" : "s"}`}
+            {question.type === "mcq" && question.options && (
+              ` · ${question.options.length} option${question.options.length === 1 ? "" : "s"} · ${question.allowMultiple ? "multi-select" : "single-select"}`
+            )}
             {question.tags.length > 0 && ` · ${question.tags.join(", ")}`}
           </p>
         </div>

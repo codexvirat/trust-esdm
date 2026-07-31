@@ -286,13 +286,15 @@ export interface AssessmentAttempt {
   submittedAt?: string | null;
 }
 
-export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid";
+export type FeedbackQuestionType = "rating" | "text" | "nps" | "grid" | "mcq";
 
 export interface FeedbackFormQuestion {
   questionText: string;
   type: FeedbackQuestionType;
   required: boolean;
   rows?: string[];
+  options?: string[];
+  allowMultiple?: boolean;
 }
 
 export interface FeedbackForm {

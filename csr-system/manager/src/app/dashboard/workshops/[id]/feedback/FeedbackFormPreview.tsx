@@ -55,6 +55,17 @@ export function FeedbackFormPreview({ form }: { form: FeedbackForm }) {
               </table>
             </div>
           )}
+
+          {q.type === "mcq" && (
+            <div className="mt-3 flex flex-col gap-2">
+              {(q.options ?? []).map((option, optionIndex) => (
+                <label key={optionIndex} className="flex items-center gap-2 text-sm text-slate-600">
+                  <input type={q.allowMultiple ? "checkbox" : "radio"} disabled className="h-4 w-4" />
+                  {option}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>

@@ -11,6 +11,8 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
   const [required, setRequired] = useState(true);
   const [tags, setTags] = useState("");
   const [rowsText, setRowsText] = useState("");
+  const [optionsText, setOptionsText] = useState("");
+  const [allowMultiple, setAllowMultiple] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
 
@@ -36,6 +38,14 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
                 .map((r) => r.trim())
                 .filter(Boolean)
             : undefined,
+        options:
+          type === "mcq"
+            ? optionsText
+                .split("\n")
+                .map((o) => o.trim())
+                .filter(Boolean)
+            : undefined,
+        allowMultiple: type === "mcq" ? allowMultiple : undefined,
         tags: tags
           .split(",")
           .map((t) => t.trim())
@@ -49,6 +59,8 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
         setTags("");
         setRequired(true);
         setRowsText("");
+        setOptionsText("");
+        setAllowMultiple(false);
       }
     });
   }
@@ -75,6 +87,7 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
             <option value="nps">NPS</option>
             <option value="text">Free text</option>
             <option value="grid">Multiple choice grid (1-5)</option>
+            <option value="mcq">Multiple choice (options)</option>
           </select>
           <label className="flex items-center gap-1 text-xs text-slate-600">
             <input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} />
@@ -95,6 +108,21 @@ export function CreateFeedbackQuestionForm({ projectId }: { projectId: string })
             rows={4}
             className="rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
+        )}
+        {type === "mcq" && (
+          <>
+            <textarea
+              value={optionsText}
+              onChange={(e) => setOptionsText(e.target.value)}
+              placeholder={"One option per line, e.g.\nStrongly agree\nAgree\nDisagree\nStrongly disagree"}
+              rows={4}
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+            />
+            <label className="flex items-center gap-1 text-xs text-slate-600">
+              <input type="checkbox" checked={allowMultiple} onChange={(e) => setAllowMultiple(e.target.checked)} />
+              Allow selecting multiple options (checkboxes instead of single-select)
+            </label>
+          </>
         )}
       </div>
 
