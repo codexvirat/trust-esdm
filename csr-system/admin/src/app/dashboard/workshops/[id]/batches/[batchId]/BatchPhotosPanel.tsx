@@ -11,11 +11,13 @@ export function BatchPhotosPanel({
   workshopId,
   batchId,
   photos,
+  locked,
 }: {
   projectId: string;
   workshopId: string;
   batchId: string;
   photos: BatchPhoto[];
+  locked?: boolean;
 }) {
   const boundAction = uploadBatchPhotoAction.bind(null, projectId, workshopId, batchId);
   const [state, action, pending] = useActionState(boundAction, initialState);
@@ -30,17 +32,19 @@ export function BatchPhotosPanel({
         Training photos for this batch — shown on the public website when someone opens this batch&apos;s details.
       </p>
 
-      <form action={action} className="mt-4 flex flex-wrap items-center gap-3">
-        <input type="file" name="photos" accept="image/*" multiple required className="text-sm" />
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-        >
-          {pending ? "Uploading…" : "Upload photos"}
-        </button>
-        {state.error && <p className="w-full text-sm text-red-700">{state.error}</p>}
-      </form>
+      {!locked && (
+        <form action={action} className="mt-4 flex flex-wrap items-center gap-3">
+          <input type="file" name="photos" accept="image/*" multiple required className="text-sm" />
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {pending ? "Uploading…" : "Upload photos"}
+          </button>
+          {state.error && <p className="w-full text-sm text-red-700">{state.error}</p>}
+        </form>
+      )}
 
       {photos.length > 0 ? (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -48,14 +52,21 @@ export function BatchPhotosPanel({
             <div key={photo._id} className="group relative overflow-hidden rounded-lg border border-slate-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={photo.url} alt="Batch training" className="h-32 w-full object-cover" />
-              <button
-                type="button"
-                disabled={removePending}
-                onClick={() => startRemove(() => removeBatchPhotoAction(projectId, workshopId, batchId, photo._id))}
-                className="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-red-700 opacity-0 shadow transition group-hover:opacity-100 disabled:opacity-60"
-              >
-                Remove
-              </button>
+              {!locked && (
+                <button
+                  type="button"
+                  disabled={removePending}
+                  onClick={() =>
+                    startRemove(async () => {
+                      const error = await removeBatchPhotoAction(projectId, workshopId, batchId, photo._id);
+                      if (error) window.alert(error);
+                    })
+                  }
+                  className="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-red-700 opacity-0 shadow transition group-hover:opacity-100 disabled:opacity-60"
+                >
+                  Remove
+                </button>
+              )}
             </div>
           ))}
         </div>

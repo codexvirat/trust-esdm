@@ -83,7 +83,12 @@ export function DayPlanPanel({
                 <button
                   type="button"
                   disabled={removePending}
-                  onClick={() => startRemove(() => removeDayPlanEntryAction(workshopId, batchId, entry._id))}
+                  onClick={() =>
+                    startRemove(async () => {
+                      const error = await removeDayPlanEntryAction(workshopId, batchId, entry._id);
+                      if (error) window.alert(error);
+                    })
+                  }
                   className="text-xs font-medium text-red-700 hover:underline disabled:opacity-60"
                 >
                   Remove

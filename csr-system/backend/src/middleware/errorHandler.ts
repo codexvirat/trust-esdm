@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
 import mongoose from "mongoose";
+import multer from "multer";
 import { ApiError } from "../utils/ApiError";
 import { env } from "../config/env";
 
@@ -32,6 +33,17 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   if (typeof err === "object" && err !== null && "code" in err && (err as { code: unknown }).code === 11000) {
     res.status(409).json({ message: "Duplicate value violates a unique constraint", details: (err as { keyValue?: unknown }).keyValue });
+    return;
+  }
+
+  if (err instanceof multer.MulterError) {
+    const message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "File is too large. Maximum size is 8MB."
+        : err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE"
+          ? "Too many files uploaded at once."
+          : err.message;
+    res.status(400).json({ message });
     return;
   }
 

@@ -103,30 +103,68 @@ export default async function BatchDetailPage({
         <p className="mt-1 text-sm text-slate-500">
           {new Date(batch.startDate).toLocaleDateString()} – {new Date(batch.endDate).toLocaleDateString()} · {enrollments.length} enrolled
         </p>
+        <a
+          href={`/api/workshops/${workshopId}/batches/${batchId}/report?projectId=${projectId}`}
+          className="mt-2 inline-block text-sm font-medium text-teal-700 hover:text-teal-900"
+        >
+          Download Batch Report (PDF) ↓
+        </a>
       </div>
 
       <BatchTabs workshopId={workshopId} batchId={batchId} projectId={projectId} />
+
+      {batch.isLocked && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">🔒 This batch is locked.</p>
+          <p className="mt-0.5 text-sm text-amber-800">
+            Everything below is read-only. Open the{" "}
+            <Link href={`/dashboard/workshops/${workshopId}/batches/${batchId}/manage?projectId=${projectId}`} className="font-medium underline">
+              Manage tab
+            </Link>{" "}
+            to unlock it.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <AssessmentAssignPanel projectId={projectId} workshopId={workshopId} batchId={batchId} assessments={assessments} />
         <FeedbackAssignPanel projectId={projectId} workshopId={workshopId} batchId={batchId} forms={feedbackForms} />
       </div>
 
-      <BatchPhotosPanel projectId={projectId} workshopId={workshopId} batchId={batchId} photos={batch.photos ?? []} />
+      <BatchPhotosPanel
+        projectId={projectId}
+        workshopId={workshopId}
+        batchId={batchId}
+        photos={batch.photos ?? []}
+        locked={batch.isLocked}
+      />
 
-      <DayPlanPanel projectId={projectId} workshopId={workshopId} batchId={batchId} entries={batch.dayPlan ?? []} staff={dayPlanStaff} />
+      <DayPlanPanel
+        projectId={projectId}
+        workshopId={workshopId}
+        batchId={batchId}
+        entries={batch.dayPlan ?? []}
+        staff={dayPlanStaff}
+        locked={batch.isLocked}
+      />
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-900">Attendance sessions</h2>
           <div className="flex items-center gap-4">
+            <Link
+              href={`/attendance/${workshopId}/${batchId}?projectId=${projectId}`}
+              className="text-sm font-medium text-teal-700 hover:text-teal-900"
+            >
+              📱 Mobile attendance
+            </Link>
             <a
               href={`/api/workshops/${workshopId}/batches/${batchId}/attendance-export?projectId=${projectId}`}
               className="text-sm font-medium text-teal-700 hover:text-teal-900"
             >
               Download Excel ↓
             </a>
-            <CreateSessionForm projectId={projectId} workshopId={workshopId} batchId={batchId} />
+            <CreateSessionForm projectId={projectId} workshopId={workshopId} batchId={batchId} locked={batch.isLocked} />
           </div>
         </div>
         <div className="mt-4">
@@ -137,6 +175,7 @@ export default async function BatchDetailPage({
             sessions={sessions}
             records={records}
             candidates={enrollments.map((e) => candidateById.get(e.candidateUserId)).filter((c): c is UserSummary => Boolean(c))}
+            locked={batch.isLocked}
           />
         </div>
       </div>
@@ -147,6 +186,7 @@ export default async function BatchDetailPage({
         batchId={batchId}
         templates={templates}
         draftCount={draftCertificates.length}
+        locked={batch.isLocked}
       />
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">

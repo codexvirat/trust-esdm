@@ -21,12 +21,14 @@ export function GenerateCertificatesPanel({
   batchId,
   templates,
   draftCount,
+  locked,
 }: {
   projectId: string;
   workshopId: string;
   batchId: string;
   templates: CertificateTemplate[];
   draftCount: number;
+  locked?: boolean;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const discardFormRef = useRef<HTMLFormElement>(null);
@@ -64,7 +66,9 @@ export function GenerateCertificatesPanel({
         </a>
       </div>
 
-      {!showConfirm ? (
+      {locked ? (
+        <p className="mt-4 text-sm text-amber-700">This batch is locked — unlock it from the Manage tab to generate or publish certificates.</p>
+      ) : !showConfirm ? (
         <button
           type="button"
           onClick={() => setShowConfirm(true)}
@@ -148,7 +152,7 @@ export function GenerateCertificatesPanel({
               <form ref={discardFormRef} action={discardAction}>
                 <button
                   type="button"
-                  disabled={discardPending}
+                  disabled={discardPending || locked}
                   onClick={() => {
                     if (window.confirm(`Delete ${pendingDraftCount} draft certificate${pendingDraftCount === 1 ? "" : "s"}? This can't be undone — you'll need to generate again.`)) {
                       discardFormRef.current?.requestSubmit();
@@ -162,7 +166,7 @@ export function GenerateCertificatesPanel({
               <form action={publishAction}>
                 <button
                   type="submit"
-                  disabled={publishPending}
+                  disabled={publishPending || locked}
                   className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                 >
                   {publishPending ? "Publishing…" : "Publish & Notify Candidates"}

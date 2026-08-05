@@ -30,6 +30,18 @@ export const markManually = asyncHandler(async (req: Request, res: Response) => 
   res.status(201).json(record);
 });
 
+export const markAllPresent = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const result = await service.markAllPresent({
+    projectId: resolveProjectId(req),
+    workshopId: req.params.workshopId as string,
+    batchId: req.params.batchId as string,
+    sessionId: req.params.sessionId as string,
+    markedByUserId: req.user.userId,
+  });
+  res.status(201).json(result);
+});
+
 export const list = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
 

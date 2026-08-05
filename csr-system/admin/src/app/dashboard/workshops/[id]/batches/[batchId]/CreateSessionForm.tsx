@@ -5,14 +5,29 @@ import { generateAttendanceSessionAction, type FormState } from "@/app/actions/a
 
 const initialState: FormState = {};
 
-export function CreateSessionForm({ projectId, workshopId, batchId }: { projectId: string; workshopId: string; batchId: string }) {
+export function CreateSessionForm({
+  projectId,
+  workshopId,
+  batchId,
+  locked,
+}: {
+  projectId: string;
+  workshopId: string;
+  batchId: string;
+  locked?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const bound = generateAttendanceSessionAction.bind(null, projectId, workshopId, batchId);
   const [state, action, pending] = useActionState(bound, initialState);
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+      <button
+        type="button"
+        disabled={locked}
+        onClick={() => setOpen(true)}
+        className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+      >
         + Open session
       </button>
     );

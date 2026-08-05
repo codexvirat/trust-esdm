@@ -44,7 +44,9 @@ export async function submitFeedback(input: {
 }
 
 export async function listResponsesForForm(projectId: string, formId: string) {
-  return FeedbackResponse.find({ projectId, feedbackFormId: formId }).sort({ submittedAt: -1 });
+  return FeedbackResponse.find({ projectId, feedbackFormId: formId })
+    .sort({ submittedAt: -1 })
+    .populate("candidateUserId", "fullName email");
 }
 
 export async function getOwnResponse(candidateUserId: string, formId: string) {

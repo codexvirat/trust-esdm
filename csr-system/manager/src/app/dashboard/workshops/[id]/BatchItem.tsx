@@ -90,7 +90,10 @@ export function BatchItem({
             disabled={deletePending}
             onClick={() => {
               if (window.confirm(`Delete batch "${batch.name}"? This also removes its enrollments, attendance, and certificates.`)) {
-                startDelete(() => deleteBatchAction(workshopId, batch._id));
+                startDelete(async () => {
+                  const error = await deleteBatchAction(workshopId, batch._id);
+                  if (error) window.alert(error);
+                });
               }
             }}
             className="text-xs font-medium text-red-700 hover:underline disabled:opacity-60"
@@ -105,7 +108,13 @@ export function BatchItem({
         <select
           defaultValue={batch.venueId ?? ""}
           disabled={venuePending}
-          onChange={(e) => startVenueChange(() => updateBatchVenueAction(workshopId, batch._id, e.target.value))}
+          onChange={(e) => {
+            const venueId = e.target.value;
+            startVenueChange(async () => {
+              const error = await updateBatchVenueAction(workshopId, batch._id, venueId);
+              if (error) window.alert(error);
+            });
+          }}
           className="rounded-md border border-slate-300 px-2 py-1 text-xs disabled:opacity-60"
         >
           <option value="">No venue</option>
@@ -125,7 +134,12 @@ export function BatchItem({
               key={action.status}
               type="button"
               disabled={statusPending}
-              onClick={() => startStatusChange(() => setBatchStatusAction(workshopId, batch._id, action.status))}
+              onClick={() =>
+                startStatusChange(async () => {
+                  const error = await setBatchStatusAction(workshopId, batch._id, action.status);
+                  if (error) window.alert(error);
+                })
+              }
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition disabled:opacity-60 ${
                 action.status === "cancelled" ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
@@ -146,7 +160,12 @@ export function BatchItem({
               <button
                 type="button"
                 disabled={removePending}
-                onClick={() => startRemove(() => removeTrainerAssignmentAction(workshopId, batch._id, a._id))}
+                onClick={() =>
+                  startRemove(async () => {
+                    const error = await removeTrainerAssignmentAction(workshopId, batch._id, a._id);
+                    if (error) window.alert(error);
+                  })
+                }
                 className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
                 aria-label={`Remove ${trainer?.fullName ?? "trainer"}`}
               >
@@ -197,7 +216,12 @@ export function BatchItem({
               <button
                 type="button"
                 disabled={removeWmPending}
-                onClick={() => startRemoveWm(() => removeWorkshopManagerAssignmentAction(workshopId, batch._id, a._id))}
+                onClick={() =>
+                  startRemoveWm(async () => {
+                    const error = await removeWorkshopManagerAssignmentAction(workshopId, batch._id, a._id);
+                    if (error) window.alert(error);
+                  })
+                }
                 className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
                 aria-label={`Remove ${workshopManager?.fullName ?? "workshop manager"}`}
               >

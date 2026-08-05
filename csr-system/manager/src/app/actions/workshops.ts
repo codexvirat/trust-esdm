@@ -136,21 +136,33 @@ export async function createBatchAction(workshopId: string, _prevState: FormStat
   return {};
 }
 
-export async function setBatchStatusAction(workshopId: string, batchId: string, status: Batch["status"]): Promise<void> {
+export async function setBatchStatusAction(workshopId: string, batchId: string, status: Batch["status"]): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}`, { method: "PATCH", accessToken, body: { status } });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}`, { method: "PATCH", accessToken, body: { status } });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to update batch status.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}`);
 }
 
-export async function updateBatchVenueAction(workshopId: string, batchId: string, venueId: string): Promise<void> {
+export async function updateBatchVenueAction(workshopId: string, batchId: string, venueId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}`, { method: "PATCH", accessToken, body: { venueId: venueId || null } });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}`, { method: "PATCH", accessToken, body: { venueId: venueId || null } });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to update venue.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}`);
 }
 
-export async function deleteBatchAction(workshopId: string, batchId: string): Promise<void> {
+export async function deleteBatchAction(workshopId: string, batchId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}`, { method: "DELETE", accessToken });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}`, { method: "DELETE", accessToken });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to delete batch.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}`);
 }
 
@@ -176,9 +188,13 @@ export async function assignTrainerAction(workshopId: string, batchId: string, _
   return {};
 }
 
-export async function removeTrainerAssignmentAction(workshopId: string, batchId: string, assignmentId: string): Promise<void> {
+export async function removeTrainerAssignmentAction(workshopId: string, batchId: string, assignmentId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/trainer-assignments/${assignmentId}`, { method: "DELETE", accessToken });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/trainer-assignments/${assignmentId}`, { method: "DELETE", accessToken });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to remove trainer.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}`);
 }
 
@@ -209,12 +225,16 @@ export async function assignWorkshopManagerAction(
   return {};
 }
 
-export async function removeWorkshopManagerAssignmentAction(workshopId: string, batchId: string, assignmentId: string): Promise<void> {
+export async function removeWorkshopManagerAssignmentAction(workshopId: string, batchId: string, assignmentId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/workshop-manager-assignments/${assignmentId}`, {
-    method: "DELETE",
-    accessToken,
-  });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/workshop-manager-assignments/${assignmentId}`, {
+      method: "DELETE",
+      accessToken,
+    });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to remove workshop manager.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}`);
 }
 
@@ -255,9 +275,13 @@ export async function uploadBatchPhotoAction(
   return {};
 }
 
-export async function removeBatchPhotoAction(workshopId: string, batchId: string, photoId: string): Promise<void> {
+export async function removeBatchPhotoAction(workshopId: string, batchId: string, photoId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/photos/${photoId}`, { method: "DELETE", accessToken });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/photos/${photoId}`, { method: "DELETE", accessToken });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to remove photo.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }
 
@@ -291,8 +315,12 @@ export async function addDayPlanEntryAction(
   return {};
 }
 
-export async function removeDayPlanEntryAction(workshopId: string, batchId: string, entryId: string): Promise<void> {
+export async function removeDayPlanEntryAction(workshopId: string, batchId: string, entryId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/day-plan/${entryId}`, { method: "DELETE", accessToken });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/day-plan/${entryId}`, { method: "DELETE", accessToken });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to remove day-plan entry.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }

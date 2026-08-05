@@ -9,7 +9,10 @@ export function BatchItem({ projectId, workshopId, batch }: { projectId: string;
         <p className="text-sm font-medium text-slate-900">
           {batch.name} <span className="text-slate-400">({batch.code})</span>
         </p>
-        <StatusPill status={batch.status} />
+        <div className="flex items-center gap-2">
+          {batch.isLocked && <span title="Locked">🔒</span>}
+          <StatusPill status={batch.status} />
+        </div>
       </div>
 
       <p className="text-xs text-slate-500">

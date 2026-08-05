@@ -1,8 +1,10 @@
 import { Router } from "express";
 import * as controller from "../controllers/batch.controller";
 import * as certificateController from "../controllers/certificate.controller";
+import * as batchReportController from "../controllers/batchReport.controller";
 import { requirePermission } from "../middleware/auth";
 import { requireWorkshopManagerAssignedToBatch } from "../middleware/workshopManagerScope";
+import { requireBatchNotLocked } from "../middleware/batchLock";
 import { validate } from "../middleware/validate";
 import { uploadBatchPhoto } from "../middleware/upload";
 import { createBatchSchema, updateBatchSchema, createDayPlanEntrySchema, updateDayPlanEntrySchema } from "../validators/batch.validators";
@@ -18,19 +20,38 @@ export const batchRouter = Router({ mergeParams: true });
 batchRouter.get("/", requirePermission(PERMISSIONS.WORKSHOP_VIEW), controller.list);
 batchRouter.post("/", requirePermission(PERMISSIONS.WORKSHOP_EDIT), validate(createBatchSchema), controller.create);
 batchRouter.get("/:batchId", requirePermission(PERMISSIONS.WORKSHOP_VIEW), requireWorkshopManagerAssignedToBatch, controller.getById);
+
+// Consolidated PDF report — batch details, enrollment/attendance/assessment/feedback summary, certificate
+// status per candidate, and photos. Read-only, so no lock check needed.
+batchRouter.get(
+  "/:batchId/report",
+  requirePermission(PERMISSIONS.WORKSHOP_VIEW),
+  requireWorkshopManagerAssignedToBatch,
+  batchReportController.generateReport,
+);
 batchRouter.patch(
   "/:batchId",
   requirePermission(PERMISSIONS.WORKSHOP_EDIT),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(updateBatchSchema),
   controller.update,
 );
-batchRouter.delete("/:batchId", requirePermission(PERMISSIONS.WORKSHOP_DELETE), controller.remove);
+batchRouter.delete("/:batchId", requirePermission(PERMISSIONS.WORKSHOP_DELETE), requireBatchNotLocked, controller.remove);
+
+// The one write allowed on a locked batch — everything else stays blocked until this is called.
+batchRouter.patch(
+  "/:batchId/unlock",
+  requirePermission(PERMISSIONS.WORKSHOP_EDIT),
+  requireWorkshopManagerAssignedToBatch,
+  controller.unlock,
+);
 
 batchRouter.post(
   "/:batchId/photos",
   requirePermission(PERMISSIONS.WORKSHOP_EDIT),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   uploadBatchPhoto.array("photos", 20),
   controller.uploadPhoto,
 );
@@ -38,6 +59,7 @@ batchRouter.delete(
   "/:batchId/photos/:photoId",
   requirePermission(PERMISSIONS.WORKSHOP_EDIT),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   controller.removePhoto,
 );
 
@@ -45,6 +67,7 @@ batchRouter.post(
   "/:batchId/day-plan",
   requirePermission(PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(createDayPlanEntrySchema),
   controller.addDayPlanEntry,
 );
@@ -52,6 +75,7 @@ batchRouter.patch(
   "/:batchId/day-plan/:entryId",
   requirePermission(PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(updateDayPlanEntrySchema),
   controller.updateDayPlanEntry,
 );
@@ -59,6 +83,7 @@ batchRouter.delete(
   "/:batchId/day-plan/:entryId",
   requirePermission(PERMISSIONS.WORKSHOP_DAY_PLAN_MANAGE),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   controller.removeDayPlanEntry,
 );
 
@@ -78,6 +103,7 @@ batchRouter.post(
   "/:batchId/certificates/generate",
   requirePermission(PERMISSIONS.CERTIFICATE_ISSUE),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(generateCertificatesForBatchSchema),
   certificateController.generateForBatch,
 );
@@ -88,6 +114,7 @@ batchRouter.post(
   "/:batchId/certificates/publish",
   requirePermission(PERMISSIONS.CERTIFICATE_ISSUE),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   certificateController.publishForBatch,
 );
 
@@ -97,5 +124,6 @@ batchRouter.delete(
   "/:batchId/certificates/drafts",
   requirePermission(PERMISSIONS.CERTIFICATE_ISSUE),
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   certificateController.discardDraftsForBatch,
 );

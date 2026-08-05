@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { closeAttendanceSessionAction, markAttendanceManuallyAction } from "@/app/actions/attendance";
+import { closeAttendanceSessionAction, markAllPresentAction, markAttendanceManuallyAction } from "@/app/actions/attendance";
 import { StatusPill } from "@/components/StatusPill";
 import { ScanBadgeForm } from "./ScanBadgeForm";
 import type { AttendanceRecord, AttendanceSession, UserSummary } from "@/lib/types";
@@ -13,6 +13,7 @@ export function SessionsPanel({
   sessions,
   records,
   candidates,
+  locked,
 }: {
   projectId: string;
   workshopId: string;
@@ -20,6 +21,7 @@ export function SessionsPanel({
   sessions: AttendanceSession[];
   records: AttendanceRecord[];
   candidates: UserSummary[];
+  locked?: boolean;
 }) {
   if (sessions.length === 0) {
     return <p className="py-6 text-center text-sm text-slate-400">No attendance sessions opened yet.</p>;
@@ -36,6 +38,7 @@ export function SessionsPanel({
           session={session}
           records={records.filter((r) => r.attendanceSessionId === session._id)}
           candidates={candidates}
+          locked={locked}
         />
       ))}
     </ul>
@@ -49,6 +52,7 @@ function SessionRow({
   session,
   records,
   candidates,
+  locked,
 }: {
   projectId: string;
   workshopId: string;
@@ -56,9 +60,11 @@ function SessionRow({
   session: AttendanceSession;
   records: AttendanceRecord[];
   candidates: UserSummary[];
+  locked?: boolean;
 }) {
   const [closePending, startClose] = useTransition();
   const [markPending, startMark] = useTransition();
+  const [markAllPending, startMarkAll] = useTransition();
   const [showMark, setShowMark] = useState(false);
 
   const recordedIds = new Set(records.map((r) => r.candidateUserId));
@@ -76,11 +82,16 @@ function SessionRow({
         </div>
         <div className="flex items-center gap-2">
           <StatusPill status={session.status} />
-          {session.status === "open" && (
+          {session.status === "open" && !locked && (
             <button
               type="button"
               disabled={closePending}
-              onClick={() => startClose(() => closeAttendanceSessionAction(projectId, workshopId, batchId, session._id))}
+              onClick={() =>
+                startClose(async () => {
+                  const error = await closeAttendanceSessionAction(projectId, workshopId, batchId, session._id);
+                  if (error) window.alert(error);
+                })
+              }
               className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
               {closePending ? "Closing…" : "Close"}
@@ -100,18 +111,36 @@ function SessionRow({
         </div>
       )}
 
-      {session.status === "open" && (
+      {session.status === "open" && !locked && (
         <div className="mt-2">
           <ScanBadgeForm projectId={projectId} workshopId={workshopId} batchId={batchId} sessionId={session._id} />
         </div>
       )}
 
-      {session.status === "open" && unrecorded.length > 0 && (
+      {session.status === "open" && !locked && unrecorded.length > 0 && (
         <div className="mt-2">
           {!showMark ? (
-            <button type="button" onClick={() => setShowMark(true)} className="text-xs font-medium text-slate-500 hover:text-slate-800">
-              No badge handy? Mark manually
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => setShowMark(true)} className="text-xs font-medium text-slate-500 hover:text-slate-800">
+                No badge handy? Mark manually
+              </button>
+              <button
+                type="button"
+                disabled={markAllPending}
+                onClick={() => {
+                  if (!window.confirm(`Mark all ${unrecorded.length} unrecorded candidate(s) present? This only fills in missing records — anyone already marked is left untouched.`)) {
+                    return;
+                  }
+                  startMarkAll(async () => {
+                    const error = await markAllPresentAction(projectId, workshopId, batchId, session._id);
+                    if (error) window.alert(error);
+                  });
+                }}
+                className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+              >
+                {markAllPending ? "Marking…" : `Mark all present (${unrecorded.length})`}
+              </button>
+            </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
               {unrecorded.map((c) => (
@@ -122,7 +151,12 @@ function SessionRow({
                       key={status}
                       type="button"
                       disabled={markPending}
-                      onClick={() => startMark(() => markAttendanceManuallyAction(projectId, workshopId, batchId, session._id, c._id, status))}
+                      onClick={() =>
+                        startMark(async () => {
+                          const error = await markAttendanceManuallyAction(projectId, workshopId, batchId, session._id, c._id, status);
+                          if (error) window.alert(error);
+                        })
+                      }
                       className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium hover:opacity-80 ${
                         status === "present" ? "bg-emerald-100 text-emerald-700" : status === "late" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
                       }`}

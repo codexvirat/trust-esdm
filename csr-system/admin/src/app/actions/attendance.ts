@@ -39,12 +39,21 @@ export async function generateAttendanceSessionAction(
   return {};
 }
 
-export async function closeAttendanceSessionAction(projectId: string, workshopId: string, batchId: string, sessionId: string): Promise<void> {
+export async function closeAttendanceSessionAction(
+  projectId: string,
+  workshopId: string,
+  batchId: string,
+  sessionId: string,
+): Promise<string | void> {
   const { accessToken } = await requireAdminRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/close?projectId=${projectId}`, {
-    method: "PATCH",
-    accessToken,
-  });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/close?projectId=${projectId}`, {
+      method: "PATCH",
+      accessToken,
+    });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to close session.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }
 
@@ -76,6 +85,24 @@ export async function scanCandidateBadgeAction(
   return {};
 }
 
+export async function markAllPresentAction(
+  projectId: string,
+  workshopId: string,
+  batchId: string,
+  sessionId: string,
+): Promise<string | void> {
+  const { accessToken } = await requireAdminRole();
+  try {
+    await apiFetch(
+      `/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records/mark-all-present?projectId=${projectId}`,
+      { method: "POST", accessToken },
+    );
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to mark all present.";
+  }
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+}
+
 export async function markAttendanceManuallyAction(
   projectId: string,
   workshopId: string,
@@ -83,12 +110,16 @@ export async function markAttendanceManuallyAction(
   sessionId: string,
   candidateUserId: string,
   status: "present" | "late" | "absent",
-): Promise<void> {
+): Promise<string | void> {
   const { accessToken } = await requireAdminRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records?projectId=${projectId}`, {
-    method: "POST",
-    accessToken,
-    body: { candidateUserId, status },
-  });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records?projectId=${projectId}`, {
+      method: "POST",
+      accessToken,
+      body: { candidateUserId, status },
+    });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to mark attendance.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }

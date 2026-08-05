@@ -38,9 +38,13 @@ export async function generateAttendanceSessionAction(
   return {};
 }
 
-export async function closeAttendanceSessionAction(workshopId: string, batchId: string, sessionId: string): Promise<void> {
+export async function closeAttendanceSessionAction(workshopId: string, batchId: string, sessionId: string): Promise<string | void> {
   const { accessToken } = await requireOrgAdminRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/close`, { method: "PATCH", accessToken });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/close`, { method: "PATCH", accessToken });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to close session.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }
 
@@ -85,12 +89,16 @@ export async function markAttendanceManuallyAction(
   sessionId: string,
   candidateUserId: string,
   status: "present" | "late" | "absent",
-): Promise<void> {
+): Promise<string | void> {
   const { accessToken } = await requireOrgAdminRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records`, {
-    method: "POST",
-    accessToken,
-    body: { candidateUserId, status },
-  });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records`, {
+      method: "POST",
+      accessToken,
+      body: { candidateUserId, status },
+    });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to mark attendance.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }

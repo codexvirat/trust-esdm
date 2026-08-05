@@ -4,6 +4,7 @@ import * as recordController from "../controllers/attendanceRecord.controller";
 import { requirePermission } from "../middleware/auth";
 import { requireTrainerAssignedToBatch } from "../middleware/trainerScope";
 import { requireWorkshopManagerAssignedToBatch } from "../middleware/workshopManagerScope";
+import { requireBatchNotLocked } from "../middleware/batchLock";
 import { validate } from "../middleware/validate";
 import { createAttendanceSessionSchema } from "../validators/attendanceSession.validators";
 import { markAttendanceSchema, scanCandidateBadgeSchema } from "../validators/attendanceRecord.validators";
@@ -24,6 +25,7 @@ attendanceSessionRouter.post(
   requirePermission(PERMISSIONS.ATTENDANCE_GENERATE_QR),
   requireTrainerAssignedToBatch,
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(createAttendanceSessionSchema),
   sessionController.create,
 );
@@ -39,6 +41,7 @@ attendanceSessionRouter.patch(
   requirePermission(PERMISSIONS.ATTENDANCE_GENERATE_QR),
   requireTrainerAssignedToBatch,
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   sessionController.close,
 );
 
@@ -49,6 +52,7 @@ attendanceSessionRouter.post(
   requirePermission(PERMISSIONS.ATTENDANCE_MARK),
   requireTrainerAssignedToBatch,
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(scanCandidateBadgeSchema),
   recordController.scanCandidateBadge,
 );
@@ -59,6 +63,18 @@ attendanceSessionRouter.post(
   requirePermission(PERMISSIONS.ATTENDANCE_MARK),
   requireTrainerAssignedToBatch,
   requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
   validate(markAttendanceSchema),
   recordController.markManually,
+);
+
+// Bulk-fills "present" for every enrolled candidate with no record yet in this
+// session. Never touches a candidate who's already been marked present/late/absent.
+attendanceSessionRouter.post(
+  "/:sessionId/records/mark-all-present",
+  requirePermission(PERMISSIONS.ATTENDANCE_MARK),
+  requireTrainerAssignedToBatch,
+  requireWorkshopManagerAssignedToBatch,
+  requireBatchNotLocked,
+  recordController.markAllPresent,
 );

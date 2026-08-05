@@ -32,6 +32,17 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
   );
 });
 
+export const unlock = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const batch = await service.unlockBatch(
+    resolveProjectId(req),
+    req.params.workshopId as string,
+    req.params.batchId as string,
+    req.user.userId,
+  );
+  res.json(batch);
+});
+
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   await service.deleteBatch(resolveProjectId(req), req.params.workshopId as string, req.params.batchId as string, req.user.userId);

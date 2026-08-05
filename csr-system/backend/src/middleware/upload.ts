@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import multer from "multer";
+import { ApiError } from "../utils/ApiError";
 
 export const UPLOADS_ROOT = path.resolve(__dirname, "..", "..", "uploads");
 export const BATCH_PHOTOS_DIR = path.join(UPLOADS_ROOT, "batch-photos");
@@ -22,7 +23,7 @@ export const uploadBatchPhoto = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
-      cb(new Error("Only image uploads are allowed"));
+      cb(ApiError.badRequest("Only image uploads are allowed"));
       return;
     }
     cb(null, true);
@@ -39,7 +40,7 @@ export const uploadCertificateTemplateBackground = multer({
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
-      cb(new Error("Only image uploads are allowed"));
+      cb(ApiError.badRequest("Only image uploads are allowed"));
       return;
     }
     cb(null, true);

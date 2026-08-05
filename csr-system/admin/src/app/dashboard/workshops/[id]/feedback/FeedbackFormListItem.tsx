@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { setFeedbackEnabledAction } from "@/app/actions/feedback";
 import type { FeedbackForm, FeedbackResponse } from "@/lib/types";
 import { FeedbackFormPreview } from "./FeedbackFormPreview";
+import { FeedbackResponsesPanel } from "./FeedbackResponsesPanel";
 import { EditFeedbackForm } from "./EditFeedbackForm";
 
 export function FeedbackFormListItem({
@@ -20,12 +21,7 @@ export function FeedbackFormListItem({
   batchName?: string;
 }) {
   const [pending, startTransition] = useTransition();
-  const [view, setView] = useState<"none" | "preview" | "edit">("none");
-
-  const avgCourseRating =
-    responses.length > 0
-      ? (responses.reduce((sum, r) => sum + (r.courseRating ?? 0), 0) / responses.filter((r) => r.courseRating != null).length || 0).toFixed(1)
-      : null;
+  const [view, setView] = useState<"none" | "preview" | "edit" | "responses">("none");
 
   return (
     <li className="py-4">
@@ -37,10 +33,16 @@ export function FeedbackFormListItem({
           </p>
           <p className="text-xs text-slate-500">
             {responses.length} response{responses.length === 1 ? "" : "s"}
-            {avgCourseRating && ` · avg course rating ${avgCourseRating}/5`}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setView((v) => (v === "responses" ? "none" : "responses"))}
+            className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            {view === "responses" ? "Hide responses" : `Responses (${responses.length})`}
+          </button>
           <button
             type="button"
             onClick={() => setView((v) => (v === "preview" ? "none" : "preview"))}
@@ -68,18 +70,7 @@ export function FeedbackFormListItem({
         </div>
       </div>
 
-      {responses.length > 0 && (
-        <ul className="mt-2 flex flex-col gap-1">
-          {responses.slice(0, 5).map((r) => (
-            <li key={r._id} className="text-xs text-slate-500">
-              {r.courseRating != null && `Course: ${r.courseRating}/5`}
-              {r.trainerRating != null && ` · Trainer: ${r.trainerRating}/5`}
-              {r.comments && ` — "${r.comments}"`}
-            </li>
-          ))}
-        </ul>
-      )}
-
+      {view === "responses" && <FeedbackResponsesPanel form={form} responses={responses} />}
       {view === "preview" && <FeedbackFormPreview form={form} />}
       {view === "edit" && (
         <>

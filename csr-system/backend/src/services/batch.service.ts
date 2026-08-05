@@ -50,7 +50,20 @@ export async function getBatchById(projectId: string, workshopId: string, batchI
 }
 
 export async function updateBatch(projectId: string, workshopId: string, batchId: string, updates: Record<string, unknown>, updatedBy: string) {
-  const batch = await Batch.findOneAndUpdate({ _id: batchId, projectId, workshopId }, { $set: { ...updates, updatedBy } }, { new: true });
+  // Completing a batch locks it — every further batch-scoped write is
+  // rejected (see requireBatchNotLocked) until an explicit unlock.
+  const patch = updates.status === "completed" ? { ...updates, isLocked: true } : updates;
+  const batch = await Batch.findOneAndUpdate({ _id: batchId, projectId, workshopId }, { $set: { ...patch, updatedBy } }, { new: true });
+  if (!batch) throw ApiError.notFound("Batch not found");
+  return batch;
+}
+
+export async function unlockBatch(projectId: string, workshopId: string, batchId: string, updatedBy: string) {
+  const batch = await Batch.findOneAndUpdate(
+    { _id: batchId, projectId, workshopId },
+    { $set: { isLocked: false, updatedBy } },
+    { new: true },
+  );
   if (!batch) throw ApiError.notFound("Batch not found");
   return batch;
 }

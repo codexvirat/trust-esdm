@@ -38,9 +38,13 @@ export async function generateAttendanceSessionAction(
   return {};
 }
 
-export async function closeAttendanceSessionAction(workshopId: string, batchId: string, sessionId: string): Promise<void> {
+export async function closeAttendanceSessionAction(workshopId: string, batchId: string, sessionId: string): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/close`, { method: "PATCH", accessToken });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/close`, { method: "PATCH", accessToken });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to close session.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }
 
@@ -79,18 +83,35 @@ export async function scanCandidateBadgeAction(
   return {};
 }
 
+export async function markAllPresentAction(workshopId: string, batchId: string, sessionId: string): Promise<string | void> {
+  const { accessToken } = await requireManagerRole();
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records/mark-all-present`, {
+      method: "POST",
+      accessToken,
+    });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to mark all present.";
+  }
+  revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
+}
+
 export async function markAttendanceManuallyAction(
   workshopId: string,
   batchId: string,
   sessionId: string,
   candidateUserId: string,
   status: "present" | "late" | "absent",
-): Promise<void> {
+): Promise<string | void> {
   const { accessToken } = await requireManagerRole();
-  await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records`, {
-    method: "POST",
-    accessToken,
-    body: { candidateUserId, status },
-  });
+  try {
+    await apiFetch(`/workshops/${workshopId}/batches/${batchId}/attendance-sessions/${sessionId}/records`, {
+      method: "POST",
+      accessToken,
+      body: { candidateUserId, status },
+    });
+  } catch (err) {
+    return err instanceof ApiError ? err.message : "Failed to mark attendance.";
+  }
   revalidatePath(`/dashboard/workshops/${workshopId}/batches/${batchId}`);
 }

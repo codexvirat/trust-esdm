@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as controller from "../controllers/workshopManagerAssignment.controller";
 import { requirePermission } from "../middleware/auth";
+import { requireBatchNotLocked } from "../middleware/batchLock";
 import { validate } from "../middleware/validate";
 import { createWorkshopManagerAssignmentSchema } from "../validators/workshopManagerAssignment.validators";
 import { PERMISSIONS } from "../types/permissions";
@@ -12,11 +13,13 @@ workshopManagerAssignmentRouter.get("/", requirePermission(PERMISSIONS.WORKSHOP_
 workshopManagerAssignmentRouter.post(
   "/",
   requirePermission(PERMISSIONS.WORKSHOP_ASSIGN_TRAINER),
+  requireBatchNotLocked,
   validate(createWorkshopManagerAssignmentSchema),
   controller.assign,
 );
 workshopManagerAssignmentRouter.delete(
   "/:assignmentId",
   requirePermission(PERMISSIONS.WORKSHOP_ASSIGN_TRAINER),
+  requireBatchNotLocked,
   controller.remove,
 );

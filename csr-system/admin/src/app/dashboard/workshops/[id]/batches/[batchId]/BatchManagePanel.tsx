@@ -10,6 +10,7 @@ import {
   setBatchStatusAction,
   updateBatchVenueAction,
   deleteBatchAction,
+  unlockBatchAction,
   type FormState,
 } from "@/app/actions/workshops";
 import type { Batch, TrainerAssignment, WorkshopManagerAssignment, UserSummary, Venue } from "@/lib/types";
@@ -47,6 +48,7 @@ export function BatchManagePanel({
   venues: Venue[];
 }) {
   const router = useRouter();
+  const locked = batch.isLocked === true;
 
   const [showAssign, setShowAssign] = useState(false);
   const boundAssign = assignTrainerAction.bind(null, projectId, workshopId, batch._id);
@@ -55,6 +57,7 @@ export function BatchManagePanel({
   const [statusPending, startStatusChange] = useTransition();
   const [venuePending, startVenueChange] = useTransition();
   const [deletePending, startDelete] = useTransition();
+  const [unlockPending, startUnlock] = useTransition();
 
   const [showAssignWorkshopManager, setShowAssignWorkshopManager] = useState(false);
   const boundAssignWorkshopManager = assignWorkshopManagerAction.bind(null, projectId, workshopId, batch._id);
@@ -73,6 +76,30 @@ export function BatchManagePanel({
 
   return (
     <div className="flex flex-col gap-6">
+      {locked && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <div>
+            <p className="text-sm font-semibold text-amber-900">🔒 This batch is locked.</p>
+            <p className="mt-0.5 text-sm text-amber-800">
+              It was locked automatically when marked completed. Nothing below (or on its Overview tab) can be changed until you unlock it.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={unlockPending}
+            onClick={() =>
+              startUnlock(async () => {
+                const error = await unlockBatchAction(projectId, workshopId, batch._id);
+                if (error) window.alert(error);
+              })
+            }
+            className="shrink-0 rounded-md bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-60"
+          >
+            {unlockPending ? "Unlocking…" : "Unlock batch"}
+          </button>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         <h2 className="text-base font-semibold text-slate-900">Status &amp; venue</h2>
 
@@ -80,8 +107,14 @@ export function BatchManagePanel({
           <label className="text-xs font-medium text-slate-500">Venue</label>
           <select
             defaultValue={batch.venueId ?? ""}
-            disabled={venuePending}
-            onChange={(e) => startVenueChange(() => updateBatchVenueAction(projectId, workshopId, batch._id, e.target.value))}
+            disabled={venuePending || locked}
+            onChange={(e) => {
+              const venueId = e.target.value;
+              startVenueChange(async () => {
+                const error = await updateBatchVenueAction(projectId, workshopId, batch._id, venueId);
+                if (error) window.alert(error);
+              });
+            }}
             className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-60"
           >
             <option value="">No venue</option>
@@ -100,8 +133,13 @@ export function BatchManagePanel({
               <button
                 key={action.status}
                 type="button"
-                disabled={statusPending}
-                onClick={() => startStatusChange(() => setBatchStatusAction(projectId, workshopId, batch._id, action.status))}
+                disabled={statusPending || locked}
+                onClick={() =>
+                  startStatusChange(async () => {
+                    const error = await setBatchStatusAction(projectId, workshopId, batch._id, action.status);
+                    if (error) window.alert(error);
+                  })
+                }
                 className={`rounded-md px-3 py-1.5 text-sm font-medium transition disabled:opacity-60 ${
                   action.status === "cancelled" ? "bg-red-50 text-red-700 hover:bg-red-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
@@ -124,9 +162,14 @@ export function BatchManagePanel({
                 {a.roleInBatch === "lead" && <span className="text-slate-400">(lead)</span>}
                 <button
                   type="button"
-                  disabled={removePending}
-                  onClick={() => startRemove(() => removeTrainerAssignmentAction(projectId, workshopId, batch._id, a._id))}
-                  className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                  disabled={removePending || locked}
+                  onClick={() =>
+                    startRemove(async () => {
+                      const error = await removeTrainerAssignmentAction(projectId, workshopId, batch._id, a._id);
+                      if (error) window.alert(error);
+                    })
+                  }
+                  className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-60"
                   aria-label={`Remove ${trainer?.fullName ?? "trainer"}`}
                 >
                   ×
@@ -136,13 +179,18 @@ export function BatchManagePanel({
           })}
 
           {!showAssign && (
-            <button type="button" onClick={() => setShowAssign(true)} className="text-xs font-medium text-slate-500 hover:text-slate-800">
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() => setShowAssign(true)}
+              className="text-xs font-medium text-slate-500 hover:text-slate-800 disabled:opacity-60"
+            >
               + Assign trainer
             </button>
           )}
         </div>
 
-        {showAssign && (
+        {showAssign && !locked && (
           <form action={action} className="mt-3 flex flex-wrap items-center gap-2">
             <select name="trainerId" required className="rounded-md border border-slate-300 px-2 py-1 text-sm">
               <option value="">Choose a trainer…</option>
@@ -180,9 +228,14 @@ export function BatchManagePanel({
                 {workshopManager?.fullName ?? "Unknown workshop manager"}
                 <button
                   type="button"
-                  disabled={removeWmPending}
-                  onClick={() => startRemoveWm(() => removeWorkshopManagerAssignmentAction(projectId, workshopId, batch._id, a._id))}
-                  className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                  disabled={removeWmPending || locked}
+                  onClick={() =>
+                    startRemoveWm(async () => {
+                      const error = await removeWorkshopManagerAssignmentAction(projectId, workshopId, batch._id, a._id);
+                      if (error) window.alert(error);
+                    })
+                  }
+                  className="rounded-full px-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-60"
                   aria-label={`Remove ${workshopManager?.fullName ?? "workshop manager"}`}
                 >
                   ×
@@ -194,15 +247,16 @@ export function BatchManagePanel({
           {!showAssignWorkshopManager && (
             <button
               type="button"
+              disabled={locked}
               onClick={() => setShowAssignWorkshopManager(true)}
-              className="text-xs font-medium text-slate-500 hover:text-slate-800"
+              className="text-xs font-medium text-slate-500 hover:text-slate-800 disabled:opacity-60"
             >
               + Assign workshop manager
             </button>
           )}
         </div>
 
-        {showAssignWorkshopManager && (
+        {showAssignWorkshopManager && !locked && (
           <form action={wmAction} className="mt-3 flex flex-wrap items-center gap-2">
             <select name="workshopManagerId" required className="rounded-md border border-slate-300 px-2 py-1 text-sm">
               <option value="">Choose a workshop manager…</option>
@@ -236,18 +290,22 @@ export function BatchManagePanel({
         <div className="mt-4">
           <button
             type="button"
-            disabled={deletePending}
+            disabled={deletePending || locked}
             onClick={() => {
               if (window.confirm(`Delete batch "${batch.name}"? This also removes its enrollments, attendance, and certificates.`)) {
                 startDelete(async () => {
-                  await deleteBatchAction(projectId, workshopId, batch._id);
+                  const error = await deleteBatchAction(projectId, workshopId, batch._id);
+                  if (error) {
+                    window.alert(error);
+                    return;
+                  }
                   router.push(`/dashboard/workshops/${workshopId}?projectId=${projectId}`);
                 });
               }
             }}
             className="rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
           >
-            {deletePending ? "Deleting…" : "Delete batch"}
+            {deletePending ? "Deleting…" : locked ? "Delete batch (unlock first)" : "Delete batch"}
           </button>
         </div>
       </div>

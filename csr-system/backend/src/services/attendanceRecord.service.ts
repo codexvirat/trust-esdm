@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { AttendanceSession } from "../models/AttendanceSession";
 import { AttendanceRecord } from "../models/AttendanceRecord";
 import { Enrollment } from "../models/Enrollment";
@@ -116,6 +117,64 @@ export async function markAttendanceManually(input: {
 
   await recomputeAttendancePercent(input.projectId, input.batchId, input.candidateUserId);
   return record;
+}
+
+/**
+ * Fills in "present" for every enrolled candidate who has no record yet in this
+ * session. Uses $setOnInsert so it can never touch a record that already exists —
+ * whatever status a candidate was already marked (present/late/absent) is left alone.
+ */
+export async function markAllPresent(input: {
+  projectId: string;
+  workshopId: string;
+  batchId: string;
+  sessionId: string;
+  markedByUserId: string;
+}) {
+  const session = await AttendanceSession.findOne({
+    _id: input.sessionId,
+    projectId: input.projectId,
+    batchId: input.batchId,
+    workshopId: input.workshopId,
+  });
+  if (!session) throw ApiError.notFound("Attendance session not found");
+
+  const enrollments = await Enrollment.find({ projectId: input.projectId, batchId: input.batchId }).select("candidateUserId").lean();
+  if (enrollments.length === 0) return { markedCount: 0 };
+
+  const existing = await AttendanceRecord.find({ projectId: input.projectId, attendanceSessionId: session._id })
+    .select("candidateUserId")
+    .lean();
+  const alreadyRecorded = new Set(existing.map((r) => r.candidateUserId.toString()));
+
+  const toMark = enrollments.filter((e) => !alreadyRecorded.has(e.candidateUserId.toString()));
+  if (toMark.length === 0) return { markedCount: 0 };
+
+  const now = new Date();
+  await AttendanceRecord.bulkWrite(
+    toMark.map((e) => ({
+      updateOne: {
+        filter: { attendanceSessionId: session._id, candidateUserId: e.candidateUserId },
+        update: {
+          $setOnInsert: {
+            projectId: input.projectId,
+            attendanceSessionId: session._id,
+            batchId: session.batchId,
+            workshopId: session.workshopId,
+            candidateUserId: e.candidateUserId,
+            markedByUserId: new Types.ObjectId(input.markedByUserId),
+            scanTime: now,
+            status: "present",
+          },
+        },
+        upsert: true,
+      },
+    })),
+  );
+
+  await Promise.all(toMark.map((e) => recomputeAttendancePercent(input.projectId, input.batchId, e.candidateUserId.toString())));
+
+  return { markedCount: toMark.length };
 }
 
 export async function listProjectRecords(projectId: string, filters: { batchId?: string; candidateUserId?: string }) {

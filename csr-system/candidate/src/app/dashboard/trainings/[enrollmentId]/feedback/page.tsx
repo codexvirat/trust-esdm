@@ -33,9 +33,17 @@ export default async function FeedbackListPage({ params }: { params: Promise<{ e
                 <p className="mt-1 text-xs text-slate-500">{form.questions.length} questions</p>
               </div>
               {response ? (
-                <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                  Submitted {new Date(response.submittedAt).toLocaleDateString()}
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                    Submitted {new Date(response.submittedAt).toLocaleDateString()}
+                  </span>
+                  <Link
+                    href={`/dashboard/trainings/${enrollmentId}/feedback/${form._id}`}
+                    className="rounded-md border border-slate-300 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    View submission
+                  </Link>
+                </div>
               ) : (
                 <Link
                   href={`/dashboard/trainings/${enrollmentId}/feedback/${form._id}`}

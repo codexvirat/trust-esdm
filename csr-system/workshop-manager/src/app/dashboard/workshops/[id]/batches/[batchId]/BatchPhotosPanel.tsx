@@ -41,7 +41,12 @@ export function BatchPhotosPanel({ workshopId, batchId, photos }: { workshopId: 
               <button
                 type="button"
                 disabled={removePending}
-                onClick={() => startRemove(() => removeBatchPhotoAction(workshopId, batchId, photo._id))}
+                onClick={() =>
+                  startRemove(async () => {
+                    const error = await removeBatchPhotoAction(workshopId, batchId, photo._id);
+                    if (error) window.alert(error);
+                  })
+                }
                 className="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-red-700 opacity-0 shadow transition group-hover:opacity-100 disabled:opacity-60"
               >
                 Remove

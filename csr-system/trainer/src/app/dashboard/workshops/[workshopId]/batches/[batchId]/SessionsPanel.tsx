@@ -75,7 +75,12 @@ function SessionRow({
             <button
               type="button"
               disabled={closePending}
-              onClick={() => startClose(() => closeAttendanceSessionAction(workshopId, batchId, session._id))}
+              onClick={() =>
+                startClose(async () => {
+                  const error = await closeAttendanceSessionAction(workshopId, batchId, session._id);
+                  if (error) window.alert(error);
+                })
+              }
               className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
               {closePending ? "Closing…" : "Close"}
@@ -117,7 +122,12 @@ function SessionRow({
                       key={status}
                       type="button"
                       disabled={markPending}
-                      onClick={() => startMark(() => markAttendanceManuallyAction(workshopId, batchId, session._id, c._id, status))}
+                      onClick={() =>
+                        startMark(async () => {
+                          const error = await markAttendanceManuallyAction(workshopId, batchId, session._id, c._id, status);
+                          if (error) window.alert(error);
+                        })
+                      }
                       className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium hover:opacity-80 ${
                         status === "present" ? "bg-emerald-100 text-emerald-700" : status === "late" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
                       }`}

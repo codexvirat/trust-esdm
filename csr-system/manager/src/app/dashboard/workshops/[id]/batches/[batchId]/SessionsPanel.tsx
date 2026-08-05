@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { closeAttendanceSessionAction, markAttendanceManuallyAction } from "@/app/actions/attendance";
+import { closeAttendanceSessionAction, markAllPresentAction, markAttendanceManuallyAction } from "@/app/actions/attendance";
 import { StatusPill } from "@/components/StatusPill";
 import { ScanBadgeForm } from "./ScanBadgeForm";
 import type { AttendanceRecord, AttendanceSession, UserSummary } from "@/lib/types";
@@ -54,6 +54,7 @@ function SessionRow({
 }) {
   const [closePending, startClose] = useTransition();
   const [markPending, startMark] = useTransition();
+  const [markAllPending, startMarkAll] = useTransition();
   const [showMark, setShowMark] = useState(false);
 
   const recordedIds = new Set(records.map((r) => r.candidateUserId));
@@ -75,7 +76,12 @@ function SessionRow({
             <button
               type="button"
               disabled={closePending}
-              onClick={() => startClose(() => closeAttendanceSessionAction(workshopId, batchId, session._id))}
+              onClick={() =>
+                startClose(async () => {
+                  const error = await closeAttendanceSessionAction(workshopId, batchId, session._id);
+                  if (error) window.alert(error);
+                })
+              }
               className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
             >
               {closePending ? "Closing…" : "Close"}
@@ -104,9 +110,27 @@ function SessionRow({
       {session.status === "open" && unrecorded.length > 0 && (
         <div className="mt-2">
           {!showMark ? (
-            <button type="button" onClick={() => setShowMark(true)} className="text-xs font-medium text-slate-500 hover:text-slate-800">
-              No badge handy? Mark manually
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={() => setShowMark(true)} className="text-xs font-medium text-slate-500 hover:text-slate-800">
+                No badge handy? Mark manually
+              </button>
+              <button
+                type="button"
+                disabled={markAllPending}
+                onClick={() => {
+                  if (!window.confirm(`Mark all ${unrecorded.length} unrecorded candidate(s) present? This only fills in missing records — anyone already marked is left untouched.`)) {
+                    return;
+                  }
+                  startMarkAll(async () => {
+                    const error = await markAllPresentAction(workshopId, batchId, session._id);
+                    if (error) window.alert(error);
+                  });
+                }}
+                className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+              >
+                {markAllPending ? "Marking…" : `Mark all present (${unrecorded.length})`}
+              </button>
+            </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
               {unrecorded.map((c) => (
@@ -117,7 +141,12 @@ function SessionRow({
                       key={status}
                       type="button"
                       disabled={markPending}
-                      onClick={() => startMark(() => markAttendanceManuallyAction(workshopId, batchId, session._id, c._id, status))}
+                      onClick={() =>
+                        startMark(async () => {
+                          const error = await markAttendanceManuallyAction(workshopId, batchId, session._id, c._id, status);
+                          if (error) window.alert(error);
+                        })
+                      }
                       className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium hover:opacity-80 ${
                         status === "present" ? "bg-emerald-100 text-emerald-700" : status === "late" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
                       }`}

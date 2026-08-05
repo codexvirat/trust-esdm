@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
 import { requireCandidateRole } from "@/lib/dal";
 import { apiFetch } from "@/lib/api";
 import type { Enrollment, FeedbackForm, FeedbackResponse } from "@/lib/types";
 import { FeedbackFormClient } from "./FeedbackFormClient";
+import { FeedbackResponseView } from "./FeedbackResponseView";
 
 export default async function FeedbackFormPage({
   params,
@@ -18,17 +18,19 @@ export default async function FeedbackFormPage({
     apiFetch<FeedbackResponse | null>(`/workshops/${enrollment.workshopId}/feedback-forms/${formId}/responses/mine`, { accessToken }),
   ]);
 
-  if (existing) {
-    redirect(`/dashboard/trainings/${enrollmentId}/feedback`);
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Feedback</h1>
-        <p className="mt-1 text-sm text-slate-500">Your responses help us improve future trainings.</p>
+        <p className="mt-1 text-sm text-slate-500">
+          {existing ? "Here's what you submitted." : "Your responses help us improve future trainings."}
+        </p>
       </div>
-      <FeedbackFormClient workshopId={enrollment.workshopId} formId={formId} enrollmentId={enrollmentId} form={form} />
+      {existing ? (
+        <FeedbackResponseView form={form} response={existing} />
+      ) : (
+        <FeedbackFormClient workshopId={enrollment.workshopId} formId={formId} enrollmentId={enrollmentId} form={form} />
+      )}
     </div>
   );
 }

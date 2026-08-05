@@ -335,13 +335,19 @@ export interface FeedbackForm {
   isEnabled: boolean;
 }
 
+export interface FeedbackResponseAnswer {
+  questionIndex: number;
+  ratingValue?: number;
+  textValue?: string;
+  gridValues?: number[];
+  selectedOptions?: string[];
+}
+
 export interface FeedbackResponse {
   _id: string;
   feedbackFormId: string;
-  candidateUserId: string;
-  courseRating?: number;
-  trainerRating?: number;
-  comments?: string;
+  candidateUserId: string | { _id: string; fullName: string; email?: string };
+  answers: FeedbackResponseAnswer[];
   submittedAt: string;
 }
 

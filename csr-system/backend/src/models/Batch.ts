@@ -35,6 +35,10 @@ const batchSchema = new Schema({
   status: { type: String, enum: BATCH_STATUSES, default: "scheduled", index: true },
   photos: { type: [batchPhotoSchema], default: [] },
   dayPlan: { type: [dayPlanEntrySchema], default: [] },
+  // Set automatically when status transitions to "completed" — while true,
+  // every batch-scoped write (photos, day-plan, attendance, assignments,
+  // venue/status, certificates) is rejected until explicitly unlocked.
+  isLocked: { type: Boolean, default: false },
 });
 
 applyBasePlugin(batchSchema, { tenant: true });
