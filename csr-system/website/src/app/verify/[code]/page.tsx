@@ -12,10 +12,6 @@ interface VerifyResult {
   organisationName: string;
 }
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
 export default async function VerifyCertificatePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
 
@@ -57,7 +53,6 @@ export default async function VerifyCertificatePage({ params }: { params: Promis
               <Row label="Workshop" value={result.workshopTitle} />
               {result.batchName && <Row label="Batch" value={result.batchName} />}
               <Row label="Certificate No." value={result.certificateNumber} />
-              <Row label="Issued on" value={formatDateTime(result.issueDate)} />
               <Row label="Organization" value={result.organisationName} />
             </div>
           </div>
