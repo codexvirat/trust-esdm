@@ -2,6 +2,7 @@ import { User } from "../models/User";
 import { Role } from "../models/Role";
 import { Project } from "../models/Project";
 import { CandidateProfile } from "../models/CandidateProfile";
+import { Organisation } from "../models/Organisation";
 import { TrainerProfile } from "../models/TrainerProfile";
 import { Enrollment } from "../models/Enrollment";
 import { Workshop } from "../models/Workshop";
@@ -197,6 +198,67 @@ export async function updateUserBasicInfo(
 
   const updated = await User.findByIdAndUpdate(userId, update, { new: true });
   return updated!;
+}
+
+/**
+ * Corrects a candidate's company affiliation — the fix for "the candidate's
+ * company is already in our Organisation list, but they typed their own
+ * (wrong/misspelled) details instead of picking it," which otherwise leaks
+ * onto the certificate number prefix and the public verify page (see
+ * certificate.service.ts#resolveCandidateOrganisationShortCode / verifyByCode).
+ *
+ * Passing organisationId re-snapshots from the master Organisation record —
+ * same trust boundary as registration.service.ts#applyForWorkshop, never the
+ * client-submitted affiliatedOrganisation fields for a known org. Passing
+ * affiliatedOrganisation instead is a manual correction for a company that
+ * isn't in the master list. Passing neither clears the affiliation.
+ */
+export async function updateCandidateOrganisation(
+  projectId: string,
+  userId: string,
+  updates: { organisationId?: string | null; affiliatedOrganisation?: Record<string, unknown> | null },
+  updatedBy: string,
+) {
+  const user = await getUserById(projectId, userId);
+  if (user.roleCode !== "candidate") throw ApiError.badRequest("User is not a candidate");
+
+  let organisationId: string | null = null;
+  let affiliatedOrganisation: Record<string, unknown> | null = null;
+
+  if (updates.organisationId) {
+    const organisation = await Organisation.findOne({ _id: updates.organisationId, projectId, isActive: true });
+    if (!organisation) throw ApiError.notFound("Selected organisation not found");
+    organisationId = organisation.id;
+    affiliatedOrganisation = {
+      name: organisation.name,
+      email: organisation.email,
+      phone: organisation.phone,
+      type: organisation.type,
+      addressLine1: organisation.addressLine1,
+      addressLine2: organisation.addressLine2,
+      state: organisation.state,
+      district: organisation.district,
+      city: organisation.city,
+      pincode: organisation.pincode,
+      gstin: organisation.gstin,
+      pan: organisation.pan,
+      shortCode: organisation.shortCode,
+      industry: organisation.industry,
+      employeeCount: organisation.employeeCount,
+      establishedDate: organisation.establishedDate,
+    };
+  } else if (updates.affiliatedOrganisation) {
+    if (!updates.affiliatedOrganisation.name) throw ApiError.badRequest("Organisation name is required");
+    affiliatedOrganisation = updates.affiliatedOrganisation;
+  }
+
+  const profile = await CandidateProfile.findOneAndUpdate(
+    { userId: user._id, projectId },
+    { $set: { organisationId, affiliatedOrganisation, updatedBy } },
+    { new: true },
+  );
+  if (!profile) throw ApiError.notFound("Candidate profile not found");
+  return profile;
 }
 
 /**

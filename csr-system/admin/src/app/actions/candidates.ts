@@ -111,6 +111,65 @@ export async function getCandidateProfileAction(projectId: string, candidateId: 
   });
 }
 
+/**
+ * Corrects a candidate's company affiliation. `mode` "existing" re-links to a
+ * staff-registered Organisation (server re-snapshots its fields — see
+ * userService.updateCandidateOrganisation); "manual" saves free-text details
+ * for a company that isn't in that list; "clear" removes the affiliation.
+ */
+export async function updateCandidateOrganisationAction(
+  projectId: string,
+  candidateId: string,
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { accessToken } = await requireAdminRole();
+
+  const mode = str(formData, "mode");
+  let body: { organisationId?: string | null; affiliatedOrganisation?: Record<string, unknown> | null };
+
+  if (mode === "existing") {
+    const organisationId = str(formData, "organisationId");
+    if (!organisationId) return { error: "Choose a registered organisation." };
+    body = { organisationId };
+  } else if (mode === "manual") {
+    const name = str(formData, "name");
+    if (!name) return { error: "Organisation name is required." };
+    body = {
+      organisationId: null,
+      affiliatedOrganisation: {
+        name,
+        email: str(formData, "email") || undefined,
+        phone: str(formData, "phone") || undefined,
+        type: str(formData, "type") || undefined,
+        addressLine1: str(formData, "addressLine1") || undefined,
+        addressLine2: str(formData, "addressLine2") || undefined,
+        state: str(formData, "state") || undefined,
+        district: str(formData, "district") || undefined,
+        city: str(formData, "city") || undefined,
+        pincode: str(formData, "pincode") || undefined,
+        gstin: str(formData, "gstin") || undefined,
+        pan: str(formData, "pan") || undefined,
+        shortCode: str(formData, "shortCode") || undefined,
+        industry: str(formData, "industry") || undefined,
+        employeeCount: str(formData, "employeeCount") ? Number(str(formData, "employeeCount")) : undefined,
+        establishedDate: str(formData, "establishedDate") || undefined,
+      },
+    };
+  } else {
+    body = { organisationId: null, affiliatedOrganisation: null };
+  }
+
+  try {
+    await apiFetch(`/users/${candidateId}/candidate-organisation?projectId=${projectId}`, { method: "PATCH", accessToken, body });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to update organisation." };
+  }
+
+  revalidatePath(`/dashboard/candidates/${candidateId}`);
+  return {};
+}
+
 export async function enrollCandidateAction(projectId: string, _prevState: FormState, formData: FormData): Promise<FormState> {
   const { accessToken } = await requireAdminRole();
 

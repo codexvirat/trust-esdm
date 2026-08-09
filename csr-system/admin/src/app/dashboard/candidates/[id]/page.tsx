@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch, ApiError } from "@/lib/api";
-import type { CandidateProfile, UserSummary } from "@/lib/types";
+import type { CandidateProfile, Organisation, UserSummary } from "@/lib/types";
 import { StatusPill } from "@/components/StatusPill";
+import { EditCandidateOrganisationButton } from "./EditCandidateOrganisationButton";
 
 function formatDate(iso?: string | null): string {
   return iso ? new Date(iso).toLocaleDateString() : "—";
@@ -42,6 +43,7 @@ export default async function CandidateDetailPage({
   }
 
   const { user: candidate, profile } = result;
+  const organisations = await apiFetch<Organisation[]>(`/organisations?projectId=${projectId}`, { accessToken });
   const photoUrl = mediaUrl(profile?.photoMediaId ?? null);
   const resumeUrl = mediaUrl(profile?.resumeMediaId ?? null);
   const qrDataUrl = profile?.attendanceQrToken
@@ -186,9 +188,18 @@ export default async function CandidateDetailPage({
             </dl>
           </div>
 
-          {profile.affiliatedOrganisation?.name && (
-            <div className="rounded-xl border border-slate-200 bg-white p-6">
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-slate-900">Affiliated organisation</h2>
+              <EditCandidateOrganisationButton
+                projectId={projectId}
+                candidateId={candidate._id}
+                organisations={organisations}
+                currentOrganisationId={profile.organisationId}
+                currentAffiliatedOrganisation={profile.affiliatedOrganisation}
+              />
+            </div>
+            {profile.affiliatedOrganisation?.name ? (
               <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Detail label="Name" value={profile.affiliatedOrganisation.name || "—"} />
                 <Detail label="Type" value={formatLabel(profile.affiliatedOrganisation.type)} />
@@ -207,8 +218,10 @@ export default async function CandidateDetailPage({
                 <Detail label="Employee count" value={profile.affiliatedOrganisation.employeeCount ?? "—"} />
                 <Detail label="Established date" value={formatDate(profile.affiliatedOrganisation.establishedDate)} />
               </dl>
-            </div>
-          )}
+            ) : (
+              <p className="mt-4 text-xs text-slate-400">No organisation affiliated with this candidate.</p>
+            )}
+          </div>
         </>
       )}
     </div>

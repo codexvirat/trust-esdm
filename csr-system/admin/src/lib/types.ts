@@ -101,6 +101,7 @@ export interface CandidateProfile {
     relation?: string;
     phone?: string;
   } | null;
+  organisationId?: string | null;
   affiliatedOrganisation?: AffiliatedOrganisation | null;
   alumniStatus: boolean;
   profileCompletionPercent: number;

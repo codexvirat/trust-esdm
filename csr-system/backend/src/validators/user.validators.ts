@@ -74,3 +74,15 @@ export const updateUserSchema = z.object({
     phone: z.string().optional(),
   }),
 });
+
+// Corrects a candidate's company affiliation after the fact — e.g. they typed
+// the wrong details at registration instead of picking their already-registered
+// company. Either pass organisationId (re-snapshots from the master Organisation
+// record — see updateCandidateOrganisation) or affiliatedOrganisation (manual
+// free-text correction). Passing neither clears the affiliation entirely.
+export const updateCandidateOrganisationSchema = z.object({
+  body: z.object({
+    organisationId: z.string().min(1).nullable().optional(),
+    affiliatedOrganisation: affiliatedOrganisationSchema.nullable().optional(),
+  }),
+});

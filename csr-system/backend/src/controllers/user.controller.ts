@@ -87,6 +87,16 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
   res.json(user);
 });
 
+export const updateCandidateOrganisation = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  if (!req.user.permissions.includes(PERMISSIONS.USER_MANAGE_CANDIDATE)) {
+    throw ApiError.forbidden(`Missing permission ${PERMISSIONS.USER_MANAGE_CANDIDATE} to edit a candidate's organisation`);
+  }
+  const projectId = req.user.roleCode === "super_admin" && req.query.projectId ? (req.query.projectId as string) : req.user.projectId;
+  const profile = await userService.updateCandidateOrganisation(projectId, req.params.id as string, req.body, req.user.userId);
+  res.json(profile);
+});
+
 export const resendCredentials = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   // Same reasoning as `update` — this mints and emails a brand new
