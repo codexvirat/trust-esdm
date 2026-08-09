@@ -59,6 +59,16 @@ function gatesMet(gates: GateCheck): boolean {
   return gates.attendance.met && gates.assessment.met && gates.feedback.met;
 }
 
+/**
+ * Draft generation intentionally ignores the feedback gate — feedback is often only submitted on
+ * the batch's last day, after staff already need drafts printed/reviewed. The feedback gate is
+ * still enforced, just deferred to publish time (see publishCertificatesForBatch), which is the
+ * point a certificate actually reaches the candidate.
+ */
+function draftGatesMet(gates: GateCheck): boolean {
+  return gates.attendance.met && gates.assessment.met;
+}
+
 export async function checkEligibility(projectId: string, enrollmentId: string) {
   const enrollment = await Enrollment.findOne({ _id: enrollmentId, projectId });
   if (!enrollment) throw ApiError.notFound("Enrollment not found");
@@ -155,7 +165,9 @@ async function issueCertificateCore(input: {
   const { projectId, enrollment, template, issuedByUserId, origin, status } = input;
 
   const gates = input.gates ?? (await evaluateGates(projectId, enrollment));
-  if (!gatesMet(gates)) {
+  // Drafts defer the feedback gate to publish time — see draftGatesMet.
+  const met = status === "draft" ? draftGatesMet(gates) : gatesMet(gates);
+  if (!met) {
     throw ApiError.badRequest("Certificate gates not satisfied", gates);
   }
 
@@ -281,7 +293,7 @@ export async function generateCertificatesForBatch(input: {
 
     try {
       const gates = await evaluateGates(input.projectId, enrollment);
-      if (!gatesMet(gates)) {
+      if (!draftGatesMet(gates)) {
         result.skippedIneligible.push({ enrollmentId: enrollment.id, candidateName, gates });
         continue;
       }
@@ -307,13 +319,18 @@ export async function generateCertificatesForBatch(input: {
 export interface BatchPublishResult {
   totalDrafts: number;
   published: { certificateId: string; candidateName: string; certificateNumber: string; emailDelivered: boolean }[];
+  skippedIneligible: { certificateId: string; candidateName: string; gates: GateCheck }[];
   failed: { certificateId: string; candidateName: string; error: string }[];
 }
 
 /** Flips every draft certificate in a batch to "issued": sends the candidate their certificate
  * email, and marks the enrollment "certified" so it shows up on the candidate's dashboard. This is
  * the deliberate second step an admin takes after reviewing/downloading the drafts from
- * generateCertificatesForBatch — nothing reaches the candidate until this runs. */
+ * generateCertificatesForBatch — nothing reaches the candidate until this runs.
+ *
+ * Drafts skip the feedback gate at generation time (see draftGatesMet), so this is the one place
+ * that re-checks ALL gates — including feedback — before a certificate actually goes out. A
+ * candidate who still hasn't submitted feedback is left as a draft, to publish once they have. */
 export async function publishCertificatesForBatch(input: {
   projectId: string;
   workshopId: string;
@@ -326,13 +343,25 @@ export async function publishCertificatesForBatch(input: {
     status: "draft",
   });
 
-  const result: BatchPublishResult = { totalDrafts: drafts.length, published: [], failed: [] };
+  const result: BatchPublishResult = { totalDrafts: drafts.length, published: [], skippedIneligible: [], failed: [] };
 
   for (const certificate of drafts) {
     const candidate = await User.findById(certificate.candidateUserId);
     const candidateName = candidate?.fullName ?? "Unknown candidate";
 
     try {
+      const enrollment = await Enrollment.findById(certificate.enrollmentId);
+      if (!enrollment) {
+        result.failed.push({ certificateId: certificate.id, candidateName, error: "Enrollment no longer exists" });
+        continue;
+      }
+
+      const gates = await evaluateGates(input.projectId, enrollment);
+      if (!gatesMet(gates)) {
+        result.skippedIneligible.push({ certificateId: certificate.id, candidateName, gates });
+        continue;
+      }
+
       const workshop = await Workshop.findById(certificate.workshopId);
 
       certificate.status = "issued";

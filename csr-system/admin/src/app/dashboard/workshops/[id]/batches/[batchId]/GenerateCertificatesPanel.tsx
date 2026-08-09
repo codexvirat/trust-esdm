@@ -9,11 +9,21 @@ import {
   type PublishBatchState,
   type DiscardDraftsState,
 } from "@/app/actions/certificates";
-import type { CertificateTemplate } from "@/lib/types";
+import type { BatchPublishResult, CertificateTemplate } from "@/lib/types";
 
 const initialGenerateState: GenerateBatchState = {};
 const initialPublishState: PublishBatchState = {};
 const initialDiscardState: DiscardDraftsState = {};
+
+// Draft generation doesn't gate on feedback (see the backend's draftGatesMet) — only publish does —
+// so `includeFeedback` lets each call site describe the gate it actually applied.
+function gateFailureReason(gates: BatchPublishResult["skippedIneligible"][number]["gates"], includeFeedback: boolean): string {
+  const reasons: string[] = [];
+  if (!gates.attendance.met) reasons.push("attendance below threshold");
+  if (!gates.assessment.met) reasons.push("assessment not passed");
+  if (includeFeedback && !gates.feedback.met) reasons.push("feedback not submitted yet");
+  return reasons.join(", ") || "not yet eligible";
+}
 
 export function GenerateCertificatesPanel({
   projectId,
@@ -52,10 +62,12 @@ export function GenerateCertificatesPanel({
         <div>
           <h2 className="text-base font-semibold text-slate-900">Generate certificates for this batch</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Renders a certificate as a draft for every enrolled candidate who has met the attendance/assessment/feedback
-            requirements — candidates who aren&apos;t eligible yet, or already have a certificate, are skipped automatically.
+            Renders a certificate as a draft for every enrolled candidate who has met the attendance/assessment
+            requirements — feedback isn&apos;t required yet at this step, so you can generate and print drafts before
+            it comes in. Candidates who aren&apos;t eligible, or already have a certificate, are skipped automatically.
             Drafts are saved for you to download and review, and are <strong>not</strong> emailed or shown on candidate
-            dashboards until you publish them below.
+            dashboards until you publish them below — publishing re-checks feedback too, and leaves anyone who still
+            hasn&apos;t submitted it as a draft to publish later.
           </p>
         </div>
         <a
@@ -124,7 +136,9 @@ export function GenerateCertificatesPanel({
           {generateState.result.skippedIneligible.length > 0 && (
             <ul className="mt-2 list-disc pl-5 text-slate-500">
               {generateState.result.skippedIneligible.map((r) => (
-                <li key={r.enrollmentId}>{r.candidateName} — not yet eligible</li>
+                <li key={r.enrollmentId}>
+                  {r.candidateName} — {gateFailureReason(r.gates, false)}
+                </li>
               ))}
             </ul>
           )}
@@ -190,6 +204,7 @@ export function GenerateCertificatesPanel({
         <div className="mt-4 rounded-lg bg-slate-50 p-4 text-sm">
           <p className="font-medium text-slate-900">
             {publishState.result.published.length} published
+            {publishState.result.skippedIneligible.length > 0 ? ` · ${publishState.result.skippedIneligible.length} still not eligible` : ""}
             {publishState.result.failed.length > 0 ? ` · ${publishState.result.failed.length} failed` : ""}
           </p>
           {publishState.result.published.length > 0 && (
@@ -200,6 +215,20 @@ export function GenerateCertificatesPanel({
                 </li>
               ))}
             </ul>
+          )}
+          {publishState.result.skippedIneligible.length > 0 && (
+            <>
+              <p className="mt-3 text-xs text-slate-500">
+                Left as drafts — publish again for these once resolved (e.g. after feedback comes in):
+              </p>
+              <ul className="mt-1 list-disc pl-5 text-slate-500">
+                {publishState.result.skippedIneligible.map((r) => (
+                  <li key={r.certificateId}>
+                    {r.candidateName} — {gateFailureReason(r.gates, true)}
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
           {publishState.result.failed.length > 0 && (
             <ul className="mt-2 list-disc pl-5 text-red-700">

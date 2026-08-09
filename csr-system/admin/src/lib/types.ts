@@ -421,6 +421,15 @@ export interface BatchGenerateResult {
 export interface BatchPublishResult {
   totalDrafts: number;
   published: { certificateId: string; candidateName: string; certificateNumber: string; emailDelivered: boolean }[];
+  skippedIneligible: {
+    certificateId: string;
+    candidateName: string;
+    gates: {
+      attendance: { required: number; actual: number; met: boolean };
+      assessment: { required: boolean; applicable: boolean; met: boolean };
+      feedback: { required: boolean; applicable: boolean; met: boolean };
+    };
+  }[];
   failed: { certificateId: string; candidateName: string; error: string }[];
 }
 
