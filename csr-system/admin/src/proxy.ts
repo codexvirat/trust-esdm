@@ -43,6 +43,18 @@ export async function proxy(request: NextRequest) {
 
   const isAuthenticated = Boolean(accessToken);
 
+  // Every response below funnels through this — a redirect that skips a just-rotated refresh
+  // token leaves the browser holding an already-consumed one. The next request then fails to
+  // refresh with THAT token, which used to force a surprise logout (or, worse, kept retrying with
+  // the same dead token on every hop of a redirect chain).
+  const withRefreshedCookies = (response: NextResponse): NextResponse => {
+    if (refreshedCookies) {
+      response.cookies.set(ACCESS_COOKIE, refreshedCookies.accessToken, sessionCookieOptions);
+      response.cookies.set(REFRESH_COOKIE, refreshedCookies.refreshToken, sessionCookieOptions);
+    }
+    return response;
+  };
+
   if (!isAuthenticated && !isPublic) {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete(ACCESS_COOKIE);
@@ -52,7 +64,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && isPublic) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return withRefreshedCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
   }
 
   // Force a password change before anything else on first login — mirrors
@@ -62,19 +74,14 @@ export async function proxy(request: NextRequest) {
       const rawUser = request.cookies.get(USER_COOKIE)?.value;
       const user = rawUser ? (JSON.parse(rawUser) as SessionUser) : null;
       if (user?.mustChangePassword) {
-        return NextResponse.redirect(new URL("/change-password", request.url));
+        return withRefreshedCookies(NextResponse.redirect(new URL("/change-password", request.url)));
       }
     } catch {
       // malformed cookie — let the page-level session check handle it
     }
   }
 
-  const response = NextResponse.next();
-  if (refreshedCookies) {
-    response.cookies.set(ACCESS_COOKIE, refreshedCookies.accessToken, sessionCookieOptions);
-    response.cookies.set(REFRESH_COOKIE, refreshedCookies.refreshToken, sessionCookieOptions);
-  }
-  return response;
+  return withRefreshedCookies(NextResponse.next());
 }
 
 export const config = {

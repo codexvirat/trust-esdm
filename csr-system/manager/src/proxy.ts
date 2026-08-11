@@ -43,6 +43,17 @@ export async function proxy(request: NextRequest) {
 
   const isAuthenticated = Boolean(accessToken);
 
+  // Every response below funnels through this — a redirect that skips a just-rotated refresh
+  // token leaves the browser holding an already-consumed one, which forces a surprise logout (or
+  // a redirect loop) on the very next request.
+  const withRefreshedCookies = (response: NextResponse): NextResponse => {
+    if (refreshedCookies) {
+      response.cookies.set(ACCESS_COOKIE, refreshedCookies.accessToken, sessionCookieOptions);
+      response.cookies.set(REFRESH_COOKIE, refreshedCookies.refreshToken, sessionCookieOptions);
+    }
+    return response;
+  };
+
   if (!isAuthenticated && !isPublic) {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete(ACCESS_COOKIE);
@@ -52,15 +63,10 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isAuthenticated && isPublic) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return withRefreshedCookies(NextResponse.redirect(new URL("/dashboard", request.url)));
   }
 
-  const response = NextResponse.next();
-  if (refreshedCookies) {
-    response.cookies.set(ACCESS_COOKIE, refreshedCookies.accessToken, sessionCookieOptions);
-    response.cookies.set(REFRESH_COOKIE, refreshedCookies.refreshToken, sessionCookieOptions);
-  }
-  return response;
+  return withRefreshedCookies(NextResponse.next());
 }
 
 export const config = {
