@@ -32,6 +32,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <Link
               key={item.href}
               href={item.href}
+              // Prefetch off: with 15 links always in viewport, Next.js would otherwise fire 15
+              // near-simultaneous requests through proxy.ts on every page load — if the access
+              // token happens to be near expiry, that's 15 concurrent refresh attempts racing to
+              // rotate the same refresh token (see auth.service.ts's grace-period comment).
+              prefetch={false}
               className="rounded-md px-3 py-2 text-sm font-medium text-slate-400 transition hover:bg-slate-900 hover:text-white"
             >
               {item.label}

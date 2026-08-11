@@ -11,6 +11,14 @@ import type { HydratedDocument } from "mongoose";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60_000;
+// A refresh token is single-use (rotated on every call). Several near-simultaneous requests can
+// legitimately present the same still-valid token at once — e.g. a page with many links, all
+// prefetched by the browser at once, each independently going through proxy.ts. Without this
+// grace period, only the first would succeed and every other one would be told its session was
+// "revoked" and get logged out, even though nothing is actually wrong. A token reused this
+// recently after rotation is treated as one of those stragglers, not a stolen/replayed token —
+// reuse older than the window still hard-fails, so real token theft is still caught.
+const REFRESH_REUSE_GRACE_MS = 10_000;
 
 export interface TokenPair {
   accessToken: string;
@@ -117,11 +125,14 @@ export async function refresh(input: { refreshToken: string }): Promise<TokenPai
   }
 
   const session = await AuthSession.findById(payload.sid);
-  if (!session || session.revokedAt || session.expiresAt < new Date()) {
+  if (!session || session.expiresAt < new Date()) {
     throw ApiError.unauthorized("Session expired or revoked");
   }
   if (session.refreshTokenHash !== hashToken(input.refreshToken)) {
     throw ApiError.unauthorized("Refresh token does not match active session");
+  }
+  if (session.revokedAt && Date.now() - session.revokedAt.getTime() > REFRESH_REUSE_GRACE_MS) {
+    throw ApiError.unauthorized("Session expired or revoked");
   }
 
   const user = await User.findById(payload.sub);
@@ -129,9 +140,12 @@ export async function refresh(input: { refreshToken: string }): Promise<TokenPai
     throw ApiError.unauthorized("Account no longer active");
   }
 
-  // Rotate: revoke the session backing this refresh token and issue a fresh pair.
-  session.revokedAt = new Date();
-  await session.save();
+  // Rotate: revoke the session backing this refresh token and issue a fresh pair. Skip
+  // re-revoking if a concurrent request already did this within the grace window above.
+  if (!session.revokedAt) {
+    session.revokedAt = new Date();
+    await session.save();
+  }
 
   return issueTokenPair(user, { ipAddress: session.ipAddress, userAgent: session.userAgent, deviceInfo: session.deviceInfo });
 }
