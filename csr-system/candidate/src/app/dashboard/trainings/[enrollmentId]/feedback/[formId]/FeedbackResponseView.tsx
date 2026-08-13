@@ -8,6 +8,13 @@ export function FeedbackResponseView({ form, response }: { form: FeedbackForm; r
     <div className="flex flex-col gap-4">
       <p className="text-xs text-slate-500">Submitted on {new Date(response.submittedAt).toLocaleString()}</p>
 
+      {(response.courseRating != null || response.trainerRating != null) && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          {response.courseRating != null && <p className="text-sm text-slate-700">Course rating: {response.courseRating}/5</p>}
+          {response.trainerRating != null && <p className="mt-1 text-sm text-slate-700">Trainer rating: {response.trainerRating}/5</p>}
+        </div>
+      )}
+
       {form.questions.map((q, i) => {
         const a = answersByQuestion.get(i);
         return (

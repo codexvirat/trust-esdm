@@ -19,6 +19,8 @@ export function FeedbackFormClient({
   form: FeedbackForm;
 }) {
   const [answers, setAnswers] = useState<AnswerState>({});
+  const [courseRating, setCourseRating] = useState<number | undefined>();
+  const [trainerRating, setTrainerRating] = useState<number | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -53,6 +55,11 @@ export function FeedbackFormClient({
   function submit() {
     setError(undefined);
 
+    if (courseRating === undefined || trainerRating === undefined) {
+      setError("Please rate the course and the trainer.");
+      return;
+    }
+
     const missing = form.questions.find((q, i) => {
       if (!q.required) return false;
       const a = answers[i];
@@ -67,6 +74,8 @@ export function FeedbackFormClient({
     }
 
     const payload = {
+      courseRating,
+      trainerRating,
       answers: Object.entries(answers).map(([questionIndex, a]) => ({
         questionIndex: Number(questionIndex),
         ratingValue: a.ratingValue,
@@ -88,6 +97,48 @@ export function FeedbackFormClient({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="text-sm font-medium text-slate-900">
+          Rate the course overall
+          <span className="ml-1 text-red-500">*</span>
+        </p>
+        <div className="mt-3 flex gap-2">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setCourseRating(value)}
+              className={`h-9 min-w-9 rounded-md border px-2 text-sm font-medium ${
+                courseRating === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <p className="text-sm font-medium text-slate-900">
+          Rate the trainer
+          <span className="ml-1 text-red-500">*</span>
+        </p>
+        <div className="mt-3 flex gap-2">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTrainerRating(value)}
+              className={`h-9 min-w-9 rounded-md border px-2 text-sm font-medium ${
+                trainerRating === value ? "border-teal-700 bg-teal-700 text-white" : "border-slate-300 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {form.questions.map((q, i) => (
         <div key={i} className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-sm font-medium text-slate-900">

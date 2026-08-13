@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import sharp from "sharp";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { resolveUploadsPath } from "../middleware/upload";
@@ -15,6 +16,12 @@ const PAGE_WIDTH = 595.28; // A4 portrait, points
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 40;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+
+// Sibling to src/dist/uploads at the backend project root — resolved by path at runtime (not via
+// tsc, which only compiles .ts files) so it works identically under `tsx watch` and compiled `dist`,
+// same pattern as UPLOADS_ROOT in middleware/upload.ts.
+const LOGOS_DIR = path.resolve(__dirname, "..", "..", "assets", "logos");
+const REPORT_LOGO_FILES = ["esdm-logo.png", "driiv.png", "oppo-logo.png"];
 
 const INK = rgb(0.06, 0.09, 0.16);
 const MUTED = rgb(0.4, 0.44, 0.51);
@@ -141,6 +148,37 @@ class ReportLayout {
     this.cursorY -= 10;
   }
 
+  /** Letterhead row of branding logos at the very top of the report, left-aligned at a fixed height. */
+  async drawLogos(): Promise<void> {
+    const targetHeight = 28;
+    const gap = 14;
+    let x = MARGIN;
+    let drewAny = false;
+
+    for (const file of REPORT_LOGO_FILES) {
+      let imageBytes: Buffer;
+      try {
+        imageBytes = await fs.readFile(path.join(LOGOS_DIR, file));
+      } catch {
+        continue;
+      }
+
+      let image;
+      try {
+        image = await this.doc.embedPng(imageBytes);
+      } catch {
+        continue;
+      }
+
+      const drawWidth = (image.width / image.height) * targetHeight;
+      this.page.drawImage(image, { x, y: this.cursorY - targetHeight, width: drawWidth, height: targetHeight });
+      x += drawWidth + gap;
+      drewAny = true;
+    }
+
+    if (drewAny) this.cursorY -= targetHeight + 10;
+  }
+
   async drawPhotosGrid(photoUrls: string[]): Promise<void> {
     const columns = 2;
     const gap = 12;
@@ -219,6 +257,12 @@ function formatRating(value: number | null): string {
 }
 
 function formatAssessment(row: BatchReportCandidateRow): string {
+  // A certificate implies the candidate completed the course even if no assessment gate ever ran for
+  // this workshop (certificate.service.ts skips the assessment requirement when none is configured),
+  // which otherwise leaves assessmentStatus stuck at "not_started" despite the candidate being done.
+  if (row.assessmentStatus === "not_started" && (row.certificateStatus === "issued" || row.certificateStatus === "draft")) {
+    return "Complete";
+  }
   const label = row.assessmentStatus === "not_started" ? "Not started" : row.assessmentStatus[0]!.toUpperCase() + row.assessmentStatus.slice(1);
   return row.assessmentPercentage === null ? label : `${label} (${Math.round(row.assessmentPercentage)}%)`;
 }
@@ -229,9 +273,11 @@ function formatSessionRate(row: BatchReportSessionRow): string {
 }
 
 function formatCertificate(row: BatchReportCandidateRow): string {
+  // Internally "draft" (certificate record created but not yet issued) stays a distinct status —
+  // this report label just doesn't surface that distinction to the reader; both draft and no-record
+  // read as "Not issued".
   if (row.certificateStatus === "issued") return `Issued${row.certificateNumber ? ` — ${row.certificateNumber}` : ""}`;
-  if (row.certificateStatus === "draft") return "Draft";
-  return "—";
+  return "Not issued";
 }
 
 function formatOrText(value: string | number | null): string {
@@ -264,12 +310,12 @@ function drawOrganisation(layout: ReportLayout, org: BatchReportOrganisationRow)
   ]);
 
   layout.drawText(`Address: ${formatOrText(org.addressLine)}`, { size: 9 });
-  layout.drawText(`Candidates (${org.candidateNames.length}): ${org.candidateNames.join(", ")}`, { size: 9, color: MUTED });
   layout.cursorY -= 12;
 }
 
 export async function renderBatchReportPdf(data: BatchReportData): Promise<Buffer> {
   const layout = await ReportLayout.create();
+  await layout.drawLogos();
 
   layout.page.drawText(data.batch.name, { x: MARGIN, y: layout.cursorY - 20, size: 20, font: layout.boldFont, color: INK });
   layout.cursorY -= 28;
@@ -290,8 +336,8 @@ export async function renderBatchReportPdf(data: BatchReportData): Promise<Buffe
   layout.drawKeyValueGrid([
     ["Total enrollment", String(data.summary.totalEnrolled)],
     ["Average attendance", formatPercent(data.summary.averageAttendancePercent)],
-    ["Certificates issued", String(data.summary.certifiedCount)],
     ["Assessments passed", String(data.summary.passedCount)],
+    ["Certificates issued", String(data.summary.certifiedCount)],
     ["Average course rating", formatRating(data.summary.averageCourseRating)],
     ["Average trainer rating", formatRating(data.summary.averageTrainerRating)],
   ]);

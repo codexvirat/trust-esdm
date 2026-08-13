@@ -9,6 +9,8 @@ export interface ActionResult {
 }
 
 export interface SubmitFeedbackPayload {
+  courseRating: number;
+  trainerRating: number;
   answers: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[]; selectedOptions?: string[] }[];
 }
 

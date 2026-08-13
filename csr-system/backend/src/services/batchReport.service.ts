@@ -59,7 +59,6 @@ export interface BatchReportOrganisationRow {
   udyamNumber: string | null;
   industry: string | null;
   employeeCount: number | null;
-  candidateNames: string[];
 }
 
 export interface BatchReportData {
@@ -99,8 +98,25 @@ function joinAddress(parts: (string | null | undefined)[]): string | null {
   return filtered.length ? filtered.join(", ") : null;
 }
 
+interface PopulatedVenue {
+  name: string;
+  city?: string;
+  address?: string;
+  geo?: { lat: number; lng: number };
+}
+
+function toVenueSummary(venueId: unknown): PopulatedVenue | null {
+  return venueId && typeof venueId === "object" ? (venueId as PopulatedVenue) : null;
+}
+
+function formatVenueLabel(venue: PopulatedVenue | null): string | null {
+  if (!venue) return null;
+  const location = [venue.address, venue.city].filter(Boolean).join(", ");
+  return location ? `${venue.name} — ${location}` : venue.name;
+}
+
 export async function getBatchReportData(projectId: string, workshopId: string, batchId: string): Promise<BatchReportData> {
-  const batch = await Batch.findOne({ _id: batchId, projectId, workshopId });
+  const batch = await Batch.findOne({ _id: batchId, projectId, workshopId }).populate("venueId", "name city address geo");
   if (!batch) throw ApiError.notFound("Batch not found");
 
   const workshop = await Workshop.findOne({ _id: workshopId, projectId });
@@ -257,15 +273,13 @@ export async function getBatchReportData(projectId: string, workshopId: string, 
         udyamNumber: org?.udyamNumber ?? null,
         industry: org?.industry ?? snapshot?.industry ?? null,
         employeeCount: org?.employeeCount ?? snapshot?.employeeCount ?? null,
-        candidateNames: [],
       };
       organisationRowByKey.set(key, row);
       organisationRows.push(row);
     }
-    row.candidateNames.push(candidateById.get(candidateKey)?.fullName ?? "Unknown candidate");
   }
 
-  const venueLabel = batch.venue?.name || batch.venue?.city || null;
+  const venueLabel = formatVenueLabel(toVenueSummary(batch.venueId)) ?? batch.venue?.name ?? batch.venue?.city ?? null;
 
   return {
     batch: {

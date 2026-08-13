@@ -111,6 +111,8 @@ export interface FeedbackResponse {
   _id: string;
   feedbackFormId: string;
   answers: { questionIndex: number; ratingValue?: number; textValue?: string; gridValues?: number[]; selectedOptions?: string[] }[];
+  courseRating?: number;
+  trainerRating?: number;
   submittedAt: string;
 }
 
