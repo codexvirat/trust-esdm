@@ -349,6 +349,8 @@ export interface FeedbackResponse {
   feedbackFormId: string;
   candidateUserId: string | { _id: string; fullName: string; email?: string };
   answers: FeedbackResponseAnswer[];
+  courseRating?: number;
+  trainerRating?: number;
   submittedAt: string;
 }
 

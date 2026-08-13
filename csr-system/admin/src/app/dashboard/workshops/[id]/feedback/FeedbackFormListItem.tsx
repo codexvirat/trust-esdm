@@ -70,7 +70,7 @@ export function FeedbackFormListItem({
         </div>
       </div>
 
-      {view === "responses" && <FeedbackResponsesPanel form={form} responses={responses} />}
+      {view === "responses" && <FeedbackResponsesPanel projectId={projectId} workshopId={workshopId} form={form} responses={responses} />}
       {view === "preview" && <FeedbackFormPreview form={form} />}
       {view === "edit" && (
         <>

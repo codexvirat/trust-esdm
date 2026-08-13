@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { setFeedbackResponseRatingAction } from "@/app/actions/feedback";
 import type { FeedbackForm, FeedbackResponse, FeedbackResponseAnswer } from "@/lib/types";
 
 function candidateLabel(candidateUserId: FeedbackResponse["candidateUserId"]) {
@@ -44,7 +45,17 @@ function exportResponsesCsv(form: FeedbackForm, responses: FeedbackResponse[]) {
   URL.revokeObjectURL(url);
 }
 
-export function FeedbackResponsesPanel({ form, responses }: { form: FeedbackForm; responses: FeedbackResponse[] }) {
+export function FeedbackResponsesPanel({
+  projectId,
+  workshopId,
+  form,
+  responses,
+}: {
+  projectId: string;
+  workshopId: string;
+  form: FeedbackForm;
+  responses: FeedbackResponse[];
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (responses.length === 0) {
@@ -77,6 +88,9 @@ export function FeedbackResponsesPanel({ form, responses }: { form: FeedbackForm
                 <span className="text-slate-400">{expanded ? "▲" : "▼"}</span>
               </span>
             </button>
+            <div className="border-t border-slate-100 px-4 py-2">
+              <ResponseRatingEditor projectId={projectId} workshopId={workshopId} formId={form._id} response={r} />
+            </div>
             {expanded && (
               <dl className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3">
                 {form.questions.map((q, i) => {
@@ -95,6 +109,95 @@ export function FeedbackResponsesPanel({ form, responses }: { form: FeedbackForm
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Admin-only rating override — see setFeedbackResponseRatingAction for why this exists alongside the candidate form. */
+function ResponseRatingEditor({
+  projectId,
+  workshopId,
+  formId,
+  response,
+}: {
+  projectId: string;
+  workshopId: string;
+  formId: string;
+  response: FeedbackResponse;
+}) {
+  const [courseRating, setCourseRating] = useState(response.courseRating?.toString() ?? "");
+  const [trainerRating, setTrainerRating] = useState(response.trainerRating?.toString() ?? "");
+  const [error, setError] = useState<string | undefined>();
+  const [saved, setSaved] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function save() {
+    setError(undefined);
+    setSaved(false);
+    const course = courseRating === "" ? undefined : Number(courseRating);
+    const trainer = trainerRating === "" ? undefined : Number(trainerRating);
+    if (course === undefined && trainer === undefined) {
+      setError("Enter at least one rating.");
+      return;
+    }
+    if ((course !== undefined && (course < 0 || course > 5)) || (trainer !== undefined && (trainer < 0 || trainer > 5))) {
+      setError("Ratings must be between 0 and 5.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await setFeedbackResponseRatingAction(projectId, workshopId, formId, response._id, course, trainer);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSaved(true);
+    });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <label className="flex items-center gap-1 text-xs text-slate-500">
+        Course rating
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={courseRating}
+          onChange={(e) => {
+            setCourseRating(e.target.value);
+            setSaved(false);
+          }}
+          className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-600"
+        />
+        /5
+      </label>
+      <label className="flex items-center gap-1 text-xs text-slate-500">
+        Trainer rating
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={trainerRating}
+          onChange={(e) => {
+            setTrainerRating(e.target.value);
+            setSaved(false);
+          }}
+          className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-600"
+        />
+        /5
+      </label>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={save}
+        className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+      >
+        {pending ? "Saving…" : "Save rating"}
+      </button>
+      {saved && !pending && <span className="text-xs text-emerald-600">Saved</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );
 }

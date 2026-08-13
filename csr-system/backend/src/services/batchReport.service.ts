@@ -99,14 +99,16 @@ function joinAddress(parts: (string | null | undefined)[]): string | null {
 }
 
 /**
- * True once a candidate has either formally passed an assessment, or has a certificate on record
- * at all — a certificate implies course completion even when the workshop has no assessment
- * configured, in which case assessmentStatus is stuck at "not_started" (no assessment ever ran to
- * move it to "passed"). Shared by the Summary "Assessments passed" count and the per-candidate
+ * True once a candidate has either formally passed an assessment, or has an issued certificate —
+ * a certificate implies course completion even when the workshop has no assessment configured, in
+ * which case assessmentStatus is stuck at "not_started" (no assessment ever ran to move it to
+ * "passed"). Deliberately excludes "draft" certificates (created but not yet issued) so this count
+ * always matches "Certificates issued" exactly, and so a candidate never shows "Complete" next to a
+ * "Not issued" certificate. Shared by the Summary "Assessments passed" count and the per-candidate
  * "Assessment" label in the PDF so both treat this case the same way.
  */
 export function isAssessmentEffectivelyComplete(row: { assessmentStatus: string; certificateStatus: "issued" | "draft" | "none" }): boolean {
-  return row.assessmentStatus === "passed" || row.certificateStatus === "issued" || row.certificateStatus === "draft";
+  return row.assessmentStatus === "passed" || row.certificateStatus === "issued";
 }
 
 interface PopulatedVenue {
