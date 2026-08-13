@@ -66,10 +66,25 @@ function SessionRow({
   const [markPending, startMark] = useTransition();
   const [markAllPending, startMarkAll] = useTransition();
   const [showMark, setShowMark] = useState(false);
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(null);
 
   const recordedIds = new Set(records.map((r) => r.candidateUserId));
   const unrecorded = candidates.filter((c) => !recordedIds.has(c._id));
   const candidateById = new Map(candidates.map((c) => [c._id, c]));
+
+  const isClosed = session.status === "closed";
+
+  const changeStatus = (candidateId: string, status: "present" | "late" | "absent") => {
+    if (isClosed) {
+      const name = candidateById.get(candidateId)?.fullName ?? "this candidate";
+      if (!window.confirm(`Session is closed — change ${name}'s status to ${status} anyway?`)) return;
+    }
+    startMark(async () => {
+      const error = await markAttendanceManuallyAction(projectId, workshopId, batchId, session._id, candidateId, status);
+      if (error) window.alert(error);
+      else setEditingCandidateId(null);
+    });
+  };
 
   return (
     <li className="py-3">
@@ -82,6 +97,7 @@ function SessionRow({
         </div>
         <div className="flex items-center gap-2">
           <StatusPill status={session.status} />
+          {isClosed && !locked && <span className="text-[11px] text-slate-400">editable by admin</span>}
           {session.status === "open" && !locked && (
             <button
               type="button"
@@ -102,12 +118,44 @@ function SessionRow({
 
       {records.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {records.map((r) => (
-            <span key={r._id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
-              {candidateById.get(r.candidateUserId)?.fullName ?? "Unknown"}
-              <span className={r.status === "present" ? "text-emerald-600" : r.status === "late" ? "text-amber-600" : "text-red-600"}>· {r.status}</span>
-            </span>
-          ))}
+          {records.map((r) =>
+            editingCandidateId === r.candidateUserId ? (
+              <span key={r._id} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white py-1 pl-2.5 pr-1 text-xs">
+                {candidateById.get(r.candidateUserId)?.fullName ?? "Unknown"}
+                {(["present", "late", "absent"] as const).map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    disabled={markPending}
+                    onClick={() => changeStatus(r.candidateUserId, status)}
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium hover:opacity-80 ${
+                      status === "present" ? "bg-emerald-100 text-emerald-700" : status === "late" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+                <button type="button" onClick={() => setEditingCandidateId(null)} className="px-1 text-slate-400 hover:text-slate-700">
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <span key={r._id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                {candidateById.get(r.candidateUserId)?.fullName ?? "Unknown"}
+                <span className={r.status === "present" ? "text-emerald-600" : r.status === "late" ? "text-amber-600" : "text-red-600"}>· {r.status}</span>
+                {!locked && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingCandidateId(r.candidateUserId)}
+                    className="text-slate-400 hover:text-slate-700"
+                    title="Change status"
+                  >
+                    ✎
+                  </button>
+                )}
+              </span>
+            ),
+          )}
         </div>
       )}
 
@@ -117,7 +165,7 @@ function SessionRow({
         </div>
       )}
 
-      {session.status === "open" && !locked && unrecorded.length > 0 && (
+      {!locked && unrecorded.length > 0 && (
         <div className="mt-2">
           {!showMark ? (
             <div className="flex flex-wrap items-center gap-3">

@@ -10,6 +10,8 @@ import { AssessmentAttempt } from "../models/AssessmentAttempt";
 import { FeedbackForm } from "../models/FeedbackForm";
 import { FeedbackResponse } from "../models/FeedbackResponse";
 import { TrainerAssignment } from "../models/TrainerAssignment";
+import { CandidateProfile } from "../models/CandidateProfile";
+import { Organisation } from "../models/Organisation";
 import { ApiError } from "../utils/ApiError";
 
 export type SessionAttendanceStatus = "present" | "late" | "absent" | null;
@@ -45,6 +47,21 @@ export interface BatchReportSessionRow {
   totalEnrolled: number;
 }
 
+export interface BatchReportOrganisationRow {
+  name: string;
+  type: string | null;
+  email: string | null;
+  phone: string | null;
+  addressLine: string | null;
+  gstin: string | null;
+  pan: string | null;
+  cin: string | null;
+  udyamNumber: string | null;
+  industry: string | null;
+  employeeCount: number | null;
+  candidateNames: string[];
+}
+
 export interface BatchReportData {
   batch: {
     name: string;
@@ -60,6 +77,7 @@ export interface BatchReportData {
   totalSessions: number;
   sessions: BatchReportSessionRow[];
   candidates: BatchReportCandidateRow[];
+  organisations: BatchReportOrganisationRow[];
   summary: {
     totalEnrolled: number;
     averageAttendancePercent: number;
@@ -76,6 +94,11 @@ function average(values: number[]): number | null {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+function joinAddress(parts: (string | null | undefined)[]): string | null {
+  const filtered = parts.map((p) => p?.trim()).filter((p): p is string => !!p);
+  return filtered.length ? filtered.join(", ") : null;
+}
+
 export async function getBatchReportData(projectId: string, workshopId: string, batchId: string): Promise<BatchReportData> {
   const batch = await Batch.findOne({ _id: batchId, projectId, workshopId });
   if (!batch) throw ApiError.notFound("Batch not found");
@@ -86,7 +109,7 @@ export async function getBatchReportData(projectId: string, workshopId: string, 
   const enrollments = await Enrollment.find({ projectId, workshopId, batchId });
   const candidateIds = enrollments.map((e) => e.candidateUserId);
 
-  const [candidates, certificates, attendanceSessions, attendanceRecords, assessments, feedbackForms, trainerAssignments] = await Promise.all([
+  const [candidates, certificates, attendanceSessions, attendanceRecords, assessments, feedbackForms, trainerAssignments, candidateProfiles] = await Promise.all([
     User.find({ _id: { $in: candidateIds } }),
     Certificate.find({ projectId, batchId, status: { $ne: "revoked" } }),
     AttendanceSession.find({ projectId, batchId }).sort({ sessionDate: 1 }),
@@ -94,7 +117,13 @@ export async function getBatchReportData(projectId: string, workshopId: string, 
     Assessment.find({ projectId, workshopId, $or: [{ batchId }, { batchId: null }] }),
     FeedbackForm.find({ projectId, workshopId, $or: [{ batchId }, { batchId: null }] }),
     TrainerAssignment.find({ projectId, batchId, status: "active" }),
+    CandidateProfile.find({ projectId, userId: { $in: candidateIds } }),
   ]);
+
+  const profileByUserId = new Map(candidateProfiles.map((p) => [p.userId.toString(), p]));
+  const organisationIds = candidateProfiles.map((p) => p.organisationId).filter((id): id is NonNullable<typeof id> => id != null);
+  const organisationDocs = organisationIds.length ? await Organisation.find({ _id: { $in: organisationIds } }) : [];
+  const organisationById = new Map(organisationDocs.map((o) => [o.id, o]));
 
   const trainerUsers = trainerAssignments.length
     ? await User.find({ _id: { $in: trainerAssignments.map((a) => a.trainerId) } })
@@ -194,6 +223,48 @@ export async function getBatchReportData(projectId: string, workshopId: string, 
     };
   });
 
+  const organisationRows: BatchReportOrganisationRow[] = [];
+  const organisationRowByKey = new Map<string, BatchReportOrganisationRow>();
+  for (const enrollment of enrollments) {
+    const candidateKey = enrollment.candidateUserId.toString();
+    const profile = profileByUserId.get(candidateKey);
+    if (!profile) continue;
+
+    const org = profile.organisationId ? organisationById.get(profile.organisationId.toString()) : null;
+    const snapshot = profile.affiliatedOrganisation;
+    const name = org?.name ?? snapshot?.name;
+    if (!name) continue;
+
+    const key = profile.organisationId ? profile.organisationId.toString() : `snapshot:${name.trim().toLowerCase()}`;
+    let row = organisationRowByKey.get(key);
+    if (!row) {
+      row = {
+        name,
+        type: org?.type ?? snapshot?.type ?? null,
+        email: org?.email ?? snapshot?.email ?? null,
+        phone: org?.phone ?? snapshot?.phone ?? null,
+        addressLine: joinAddress([
+          org?.addressLine1 ?? snapshot?.addressLine1,
+          org?.addressLine2 ?? snapshot?.addressLine2,
+          org?.city ?? snapshot?.city,
+          org?.district ?? snapshot?.district,
+          org?.state ?? snapshot?.state,
+          org?.pincode ?? snapshot?.pincode,
+        ]),
+        gstin: org?.gstin ?? snapshot?.gstin ?? null,
+        pan: org?.pan ?? snapshot?.pan ?? null,
+        cin: org?.cin ?? null,
+        udyamNumber: org?.udyamNumber ?? null,
+        industry: org?.industry ?? snapshot?.industry ?? null,
+        employeeCount: org?.employeeCount ?? snapshot?.employeeCount ?? null,
+        candidateNames: [],
+      };
+      organisationRowByKey.set(key, row);
+      organisationRows.push(row);
+    }
+    row.candidateNames.push(candidateById.get(candidateKey)?.fullName ?? "Unknown candidate");
+  }
+
   const venueLabel = batch.venue?.name || batch.venue?.city || null;
 
   return {
@@ -211,6 +282,7 @@ export async function getBatchReportData(projectId: string, workshopId: string, 
     totalSessions: attendanceSessions.length,
     sessions: sessionRows,
     candidates: candidateRows,
+    organisations: organisationRows,
     summary: {
       totalEnrolled: enrollments.length,
       averageAttendancePercent: average(enrollments.map((e) => e.attendancePercent)) ?? 0,

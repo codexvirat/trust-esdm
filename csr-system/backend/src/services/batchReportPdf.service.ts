@@ -2,7 +2,14 @@ import fs from "node:fs/promises";
 import sharp from "sharp";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { resolveUploadsPath } from "../middleware/upload";
-import type { BatchReportData, BatchReportCandidateRow, BatchReportSessionRow, BatchReportTrainerRow, SessionAttendanceStatus } from "./batchReport.service";
+import type {
+  BatchReportData,
+  BatchReportCandidateRow,
+  BatchReportOrganisationRow,
+  BatchReportSessionRow,
+  BatchReportTrainerRow,
+  SessionAttendanceStatus,
+} from "./batchReport.service";
 
 const PAGE_WIDTH = 595.28; // A4 portrait, points
 const PAGE_HEIGHT = 841.89;
@@ -227,6 +234,40 @@ function formatCertificate(row: BatchReportCandidateRow): string {
   return "—";
 }
 
+function formatOrText(value: string | number | null): string {
+  return value === null || value === "" ? "—" : String(value);
+}
+
+function formatOrgType(type: string | null): string {
+  if (!type) return "—";
+  return type
+    .split("_")
+    .map((word) => word[0]!.toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function drawOrganisation(layout: ReportLayout, org: BatchReportOrganisationRow): void {
+  layout.ensureSpace(24);
+  layout.drawText(org.name, { bold: true, size: 11 });
+  layout.drawText(formatOrgType(org.type), { size: 9, color: MUTED });
+  layout.cursorY -= 2;
+
+  layout.drawKeyValueGrid([
+    ["Industry", formatOrText(org.industry)],
+    ["Employees", formatOrText(org.employeeCount)],
+    ["Email", formatOrText(org.email)],
+    ["Phone", formatOrText(org.phone)],
+    ["GSTIN", formatOrText(org.gstin)],
+    ["PAN", formatOrText(org.pan)],
+    ["CIN", formatOrText(org.cin)],
+    ["Udyam number", formatOrText(org.udyamNumber)],
+  ]);
+
+  layout.drawText(`Address: ${formatOrText(org.addressLine)}`, { size: 9 });
+  layout.drawText(`Candidates (${org.candidateNames.length}): ${org.candidateNames.join(", ")}`, { size: 9, color: MUTED });
+  layout.cursorY -= 12;
+}
+
 export async function renderBatchReportPdf(data: BatchReportData): Promise<Buffer> {
   const layout = await ReportLayout.create();
 
@@ -350,6 +391,13 @@ export async function renderBatchReportPdf(data: BatchReportData): Promise<Buffe
         formatCertificate(row),
       ]),
     );
+  }
+
+  if (data.organisations.length > 0) {
+    layout.drawHeading(`Organisations (${data.organisations.length})`);
+    for (const org of data.organisations) {
+      drawOrganisation(layout, org);
+    }
   }
 
   if (data.batch.photoUrls.length > 0) {
