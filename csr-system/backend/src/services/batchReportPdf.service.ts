@@ -22,7 +22,7 @@ const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 // tsc, which only compiles .ts files) so it works identically under `tsx watch` and compiled `dist`,
 // same pattern as UPLOADS_ROOT in middleware/upload.ts.
 const LOGOS_DIR = path.resolve(__dirname, "..", "..", "assets", "logos");
-const REPORT_LOGO_FILES = ["esdm-logo.png", "driiv.png", "oppo-logo.png"];
+const REPORT_LOGO_FILES = ["oppo.png", "psa-emblem.png", "driiv.png"];
 
 const INK = rgb(0.06, 0.09, 0.16);
 const MUTED = rgb(0.4, 0.44, 0.51);
