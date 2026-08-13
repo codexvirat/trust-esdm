@@ -115,6 +115,23 @@ export async function setFeedbackResponseRatingAction(
   return {};
 }
 
+/** Lets a candidate resubmit — submitFeedback rejects a second response while one exists for the same form. */
+export async function deleteFeedbackResponseAction(projectId: string, workshopId: string, formId: string, responseId: string): Promise<ActionResult> {
+  const { accessToken } = await requireAdminRole();
+
+  try {
+    await apiFetch(`/workshops/${workshopId}/feedback-forms/${formId}/responses/${responseId}?projectId=${projectId}`, {
+      method: "DELETE",
+      accessToken,
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to delete response." };
+  }
+
+  revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
+  return {};
+}
+
 /** Narrows a workshop-wide (or differently-scoped) feedback form to one batch and turns it on — the batch's "Feedback" toggle. */
 export async function assignFeedbackFormToBatchAction(projectId: string, workshopId: string, formId: string, batchId: string): Promise<ActionResult> {
   const { accessToken } = await requireAdminRole();

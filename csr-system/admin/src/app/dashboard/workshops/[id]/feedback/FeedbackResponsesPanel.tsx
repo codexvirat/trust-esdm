@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setFeedbackResponseRatingAction } from "@/app/actions/feedback";
+import { setFeedbackResponseRatingAction, deleteFeedbackResponseAction } from "@/app/actions/feedback";
 import type { FeedbackForm, FeedbackResponse, FeedbackResponseAnswer } from "@/lib/types";
 
 function candidateLabel(candidateUserId: FeedbackResponse["candidateUserId"]) {
@@ -88,8 +88,15 @@ export function FeedbackResponsesPanel({
                 <span className="text-slate-400">{expanded ? "▲" : "▼"}</span>
               </span>
             </button>
-            <div className="border-t border-slate-100 px-4 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 px-4 py-2">
               <ResponseRatingEditor projectId={projectId} workshopId={workshopId} formId={form._id} response={r} />
+              <DeleteResponseButton
+                projectId={projectId}
+                workshopId={workshopId}
+                formId={form._id}
+                responseId={r._id}
+                candidateName={candidateLabel(r.candidateUserId)}
+              />
             </div>
             {expanded && (
               <dl className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3">
@@ -197,6 +204,53 @@ function ResponseRatingEditor({
         {pending ? "Saving…" : "Save rating"}
       </button>
       {saved && !pending && <span className="text-xs text-emerald-600">Saved</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
+    </div>
+  );
+}
+
+/** Deletes a response so the candidate can resubmit — see deleteFeedbackResponseAction for details. */
+function DeleteResponseButton({
+  projectId,
+  workshopId,
+  formId,
+  responseId,
+  candidateName,
+}: {
+  projectId: string;
+  workshopId: string;
+  formId: string;
+  responseId: string;
+  candidateName: string;
+}) {
+  const [error, setError] = useState<string | undefined>();
+  const [pending, startTransition] = useTransition();
+
+  function remove() {
+    setError(undefined);
+    if (
+      !window.confirm(
+        `Delete ${candidateName}'s feedback response permanently? Their submitted answers will be lost, and they'll be able to submit fresh feedback for this form.`,
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      const result = await deleteFeedbackResponseAction(projectId, workshopId, formId, responseId);
+      if (result.error) setError(result.error);
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={remove}
+        className="rounded-md border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+      >
+        {pending ? "Deleting…" : "Delete response"}
+      </button>
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );

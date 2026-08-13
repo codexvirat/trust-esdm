@@ -69,3 +69,21 @@ export async function setResponseRating(
   if (!response) throw ApiError.notFound("Feedback response not found");
   return response;
 }
+
+/**
+ * Staff-side delete, so a candidate can be let back in to resubmit (submitFeedback rejects a
+ * second response for the same form while one exists). Also un-sets Enrollment.feedbackSubmitted —
+ * the exact inverse of what submitFeedback sets — so the feedback gate in certificate.service.ts
+ * and the report's "feedback submitted" column don't keep treating deleted feedback as satisfied.
+ */
+export async function deleteResponse(projectId: string, workshopId: string, formId: string, responseId: string) {
+  const response = await FeedbackResponse.findOneAndDelete({ _id: responseId, projectId, workshopId, feedbackFormId: formId });
+  if (!response) throw ApiError.notFound("Feedback response not found");
+
+  await Enrollment.updateOne(
+    { projectId, workshopId, candidateUserId: response.candidateUserId },
+    { $set: { feedbackSubmitted: false } },
+  );
+
+  return response;
+}

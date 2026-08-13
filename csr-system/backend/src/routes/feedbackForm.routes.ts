@@ -45,3 +45,4 @@ feedbackFormRouter.patch(
   validate(setResponseRatingSchema),
   controller.setResponseRating,
 );
+feedbackFormRouter.delete("/:formId/responses/:responseId", requirePermission(PERMISSIONS.FEEDBACK_MANAGE), controller.deleteResponse);

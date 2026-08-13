@@ -79,3 +79,9 @@ export const setResponseRating = asyncHandler(async (req: Request, res: Response
   );
   res.json(response);
 });
+
+export const deleteResponse = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  await responseService.deleteResponse(resolveProjectId(req), req.params.workshopId as string, req.params.formId as string, req.params.responseId as string);
+  res.status(204).send();
+});
