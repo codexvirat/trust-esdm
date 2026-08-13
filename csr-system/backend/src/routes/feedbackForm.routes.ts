@@ -9,6 +9,7 @@ import {
   setFeedbackEnabledSchema,
   submitFeedbackSchema,
   setResponseRatingSchema,
+  createResponseForCandidateSchema,
 } from "../validators/feedback.validators";
 import { PERMISSIONS } from "../types/permissions";
 
@@ -39,6 +40,12 @@ feedbackFormRouter.get(
   controller.listResponses,
 );
 feedbackFormRouter.get("/:formId/responses/mine", requirePermission(PERMISSIONS.FEEDBACK_SUBMIT), controller.getOwnResponse);
+feedbackFormRouter.post(
+  "/:formId/responses/manual",
+  requirePermission(PERMISSIONS.FEEDBACK_MANAGE),
+  validate(createResponseForCandidateSchema),
+  controller.createResponseForCandidate,
+);
 feedbackFormRouter.patch(
   "/:formId/responses/:responseId/rating",
   requirePermission(PERMISSIONS.FEEDBACK_MANAGE),

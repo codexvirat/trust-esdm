@@ -13,12 +13,14 @@ export function FeedbackFormListItem({
   form,
   responses,
   batchName,
+  enrolledCandidates,
 }: {
   projectId: string;
   workshopId: string;
   form: FeedbackForm;
   responses: FeedbackResponse[];
   batchName?: string;
+  enrolledCandidates: { candidateUserId: string; fullName: string; batchId: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [view, setView] = useState<"none" | "preview" | "edit" | "responses">("none");
@@ -70,7 +72,15 @@ export function FeedbackFormListItem({
         </div>
       </div>
 
-      {view === "responses" && <FeedbackResponsesPanel projectId={projectId} workshopId={workshopId} form={form} responses={responses} />}
+      {view === "responses" && (
+        <FeedbackResponsesPanel
+          projectId={projectId}
+          workshopId={workshopId}
+          form={form}
+          responses={responses}
+          enrolledCandidates={enrolledCandidates}
+        />
+      )}
       {view === "preview" && <FeedbackFormPreview form={form} />}
       {view === "edit" && (
         <>

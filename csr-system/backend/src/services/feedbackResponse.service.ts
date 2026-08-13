@@ -71,6 +71,47 @@ export async function setResponseRating(
 }
 
 /**
+ * Staff-side creation for a candidate who never submitted feedback at all — see
+ * createResponseForCandidateSchema for why setResponseRating alone isn't enough here. Deliberately
+ * skips the form.isEnabled / candidate-self-service checks submitFeedback enforces, since this is a
+ * staff action recording a rating collected some other way (call, WhatsApp, paper form), not a live
+ * candidate submission.
+ */
+export async function createResponseForCandidate(
+  projectId: string,
+  workshopId: string,
+  formId: string,
+  candidateUserId: string,
+  updates: { courseRating?: number; trainerRating?: number },
+) {
+  const form = await FeedbackForm.findOne({ _id: formId, projectId, workshopId });
+  if (!form) throw ApiError.notFound("Feedback form not found");
+
+  const enrollment = await Enrollment.findOne({ projectId, workshopId, candidateUserId });
+  if (!enrollment) throw ApiError.notFound("Candidate is not enrolled in this workshop");
+
+  const existing = await FeedbackResponse.findOne({ feedbackFormId: form._id, candidateUserId });
+  if (existing) throw ApiError.conflict("This candidate already has a response for this form — edit it instead of creating a new one");
+
+  const response = await FeedbackResponse.create({
+    projectId,
+    feedbackFormId: form._id,
+    workshopId,
+    candidateUserId,
+    trainerId: null,
+    answers: [],
+    courseRating: updates.courseRating,
+    trainerRating: updates.trainerRating,
+    submittedAt: new Date(),
+    formVersionAtResponse: form.version,
+  });
+
+  await Enrollment.updateOne({ _id: enrollment.id }, { $set: { feedbackSubmitted: true } });
+
+  return response;
+}
+
+/**
  * Staff-side delete, so a candidate can be let back in to resubmit (submitFeedback rejects a
  * second response for the same form while one exists). Also un-sets Enrollment.feedbackSubmitted —
  * the exact inverse of what submitFeedback sets — so the feedback gate in certificate.service.ts

@@ -1,6 +1,6 @@
 import { requireAdminRole } from "@/lib/dal";
 import { apiFetch } from "@/lib/api";
-import type { Batch, WorkshopSummary, FeedbackBankQuestion, FeedbackForm, FeedbackResponse } from "@/lib/types";
+import type { Batch, WorkshopSummary, FeedbackBankQuestion, FeedbackForm, FeedbackResponse, Enrollment, UserSummary } from "@/lib/types";
 import { WorkshopHeader } from "../WorkshopHeader";
 import { CreateFeedbackForm } from "./CreateFeedbackForm";
 import { FeedbackFormListItem } from "./FeedbackFormListItem";
@@ -17,16 +17,25 @@ export default async function FeedbackTabPage({
   const { projectId: requestedProjectId } = await searchParams;
   const projectId = requestedProjectId || user.projectId;
 
-  const [workshop, forms, bankQuestions, batches] = await Promise.all([
+  const [workshop, forms, bankQuestions, batches, enrollments, candidates] = await Promise.all([
     apiFetch<WorkshopSummary>(`/workshops/${workshopId}?projectId=${projectId}`, { accessToken }),
     apiFetch<FeedbackForm[]>(`/workshops/${workshopId}/feedback-forms?projectId=${projectId}`, { accessToken }),
     apiFetch<FeedbackBankQuestion[]>(`/feedback-question-bank?projectId=${projectId}`, { accessToken }),
     apiFetch<Batch[]>(`/workshops/${workshopId}/batches?projectId=${projectId}`, { accessToken }),
+    apiFetch<Enrollment[]>(`/enrollments?workshopId=${workshopId}&projectId=${projectId}`, { accessToken }),
+    apiFetch<UserSummary[]>(`/users?roleCode=candidate&projectId=${projectId}`, { accessToken }),
   ]);
   const responsesByForm = await Promise.all(
     forms.map((f) => apiFetch<FeedbackResponse[]>(`/workshops/${workshopId}/feedback-forms/${f._id}/responses?projectId=${projectId}`, { accessToken })),
   );
   const batchNameById = new Map(batches.map((b) => [b._id, b.name]));
+  const candidateById = new Map(candidates.map((c) => [c._id, c]));
+  const enrolledCandidates = enrollments
+    .map((e) => {
+      const candidate = candidateById.get(e.candidateUserId);
+      return candidate ? { candidateUserId: e.candidateUserId, fullName: candidate.fullName, batchId: e.batchId } : null;
+    })
+    .filter((c): c is { candidateUserId: string; fullName: string; batchId: string } => c !== null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,6 +53,7 @@ export default async function FeedbackTabPage({
               form={form}
               responses={responsesByForm[i] ?? []}
               batchName={form.batchId ? batchNameById.get(form.batchId) : undefined}
+              enrolledCandidates={form.batchId ? enrolledCandidates.filter((c) => c.batchId === form.batchId) : enrolledCandidates}
             />
           ))}
           {forms.length === 0 && <li className="py-6 text-center text-sm text-slate-400">No feedback forms yet.</li>}

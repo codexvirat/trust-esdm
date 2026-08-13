@@ -115,6 +115,31 @@ export async function setFeedbackResponseRatingAction(
   return {};
 }
 
+/** Records a rating for a candidate who never submitted feedback at all (e.g. collected offline). */
+export async function createFeedbackResponseForCandidateAction(
+  projectId: string,
+  workshopId: string,
+  formId: string,
+  candidateUserId: string,
+  courseRating: number | undefined,
+  trainerRating: number | undefined,
+): Promise<ActionResult> {
+  const { accessToken } = await requireAdminRole();
+
+  try {
+    await apiFetch(`/workshops/${workshopId}/feedback-forms/${formId}/responses/manual?projectId=${projectId}`, {
+      method: "POST",
+      accessToken,
+      body: { candidateUserId, courseRating, trainerRating },
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to add rating." };
+  }
+
+  revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
+  return {};
+}
+
 /** Lets a candidate resubmit — submitFeedback rejects a second response while one exists for the same form. */
 export async function deleteFeedbackResponseAction(projectId: string, workshopId: string, formId: string, responseId: string): Promise<ActionResult> {
   const { accessToken } = await requireAdminRole();

@@ -80,6 +80,19 @@ export const setResponseRating = asyncHandler(async (req: Request, res: Response
   res.json(response);
 });
 
+export const createResponseForCandidate = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const { candidateUserId, ...updates } = req.body;
+  const response = await responseService.createResponseForCandidate(
+    resolveProjectId(req),
+    req.params.workshopId as string,
+    req.params.formId as string,
+    candidateUserId,
+    updates,
+  );
+  res.status(201).json(response);
+});
+
 export const deleteResponse = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw ApiError.unauthorized();
   await responseService.deleteResponse(resolveProjectId(req), req.params.workshopId as string, req.params.formId as string, req.params.responseId as string);

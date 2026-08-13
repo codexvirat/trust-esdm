@@ -195,12 +195,19 @@ class ReportLayout {
         continue;
       }
 
-      // Normalize every upload (jpeg/webp/gif/tiff/avif/…) to PNG so it can always be embedded —
-      // pdf-lib itself only understands raw JPEG and PNG bytes.
+      // Normalize every upload (jpeg/webp/gif/tiff/avif/…) to JPEG so it can always be embedded —
+      // pdf-lib itself only understands raw JPEG and PNG bytes. Also downscale to well above what
+      // the ~250x150pt cell needs (uploads can be multi-megapixel phone photos several MB each,
+      // which bloated the PDF — and often larger still once re-encoded losslessly as PNG — enough
+      // to make report generation slow or fail for batches with many photos).
       let image;
       try {
-        const pngBytes = await sharp(imageBytes).png().toBuffer();
-        image = await this.doc.embedPng(pngBytes);
+        const jpegBytes = await sharp(imageBytes)
+          .rotate()
+          .resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 78 })
+          .toBuffer();
+        image = await this.doc.embedJpg(jpegBytes);
       } catch {
         continue;
       }

@@ -81,3 +81,17 @@ export const setResponseRatingSchema = z.object({
       message: "Provide at least one of courseRating or trainerRating",
     }),
 });
+
+// Staff-side creation of a rating-only response for a candidate who never submitted feedback at
+// all — there's nothing to override via setResponseRatingSchema when no response exists yet.
+export const createResponseForCandidateSchema = z.object({
+  body: z
+    .object({
+      candidateUserId: z.string(),
+      courseRating: z.number().min(0).max(5).optional(),
+      trainerRating: z.number().min(0).max(5).optional(),
+    })
+    .refine((b) => b.courseRating !== undefined || b.trainerRating !== undefined, {
+      message: "Provide at least one of courseRating or trainerRating",
+    }),
+});

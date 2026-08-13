@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setFeedbackResponseRatingAction, deleteFeedbackResponseAction } from "@/app/actions/feedback";
+import { setFeedbackResponseRatingAction, deleteFeedbackResponseAction, createFeedbackResponseForCandidateAction } from "@/app/actions/feedback";
 import type { FeedbackForm, FeedbackResponse, FeedbackResponseAnswer } from "@/lib/types";
 
 function candidateLabel(candidateUserId: FeedbackResponse["candidateUserId"]) {
@@ -50,29 +50,35 @@ export function FeedbackResponsesPanel({
   workshopId,
   form,
   responses,
+  enrolledCandidates,
 }: {
   projectId: string;
   workshopId: string;
   form: FeedbackForm;
   responses: FeedbackResponse[];
+  enrolledCandidates: { candidateUserId: string; fullName: string; batchId: string }[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  if (responses.length === 0) {
-    return <p className="mt-3 text-xs text-slate-400">No responses yet.</p>;
-  }
+  const respondedIds = new Set(
+    responses.map((r) => (typeof r.candidateUserId === "string" ? r.candidateUserId : r.candidateUserId._id)),
+  );
+  const missingCandidates = enrolledCandidates.filter((c) => !respondedIds.has(c.candidateUserId));
 
   return (
     <div className="mt-3 flex flex-col gap-2">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => exportResponsesCsv(form, responses)}
-          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-        >
-          Export CSV
-        </button>
-      </div>
+      {responses.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => exportResponsesCsv(form, responses)}
+            className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Export CSV
+          </button>
+        </div>
+      )}
+      {responses.length === 0 && <p className="text-xs text-slate-400">No responses yet.</p>}
       {responses.map((r) => {
         const expanded = expandedId === r._id;
         return (
@@ -116,6 +122,27 @@ export function FeedbackResponsesPanel({
           </div>
         );
       })}
+
+      {missingCandidates.length > 0 && (
+        <div className="mt-2 rounded-lg border border-slate-200">
+          <p className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            Candidates without a response ({missingCandidates.length}) — enter a rating if you already have it (e.g. collected offline) to record it
+            without the candidate submitting through the form.
+          </p>
+          <ul className="divide-y divide-slate-100">
+            {missingCandidates.map((c) => (
+              <AddResponseRow
+                key={c.candidateUserId}
+                projectId={projectId}
+                workshopId={workshopId}
+                formId={form._id}
+                candidateUserId={c.candidateUserId}
+                candidateName={c.fullName}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -253,5 +280,97 @@ function DeleteResponseButton({
       </button>
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
+  );
+}
+
+/** Creates a rating-only response for a candidate who never submitted feedback at all — see createFeedbackResponseForCandidateAction. */
+function AddResponseRow({
+  projectId,
+  workshopId,
+  formId,
+  candidateUserId,
+  candidateName,
+}: {
+  projectId: string;
+  workshopId: string;
+  formId: string;
+  candidateUserId: string;
+  candidateName: string;
+}) {
+  const [courseRating, setCourseRating] = useState("");
+  const [trainerRating, setTrainerRating] = useState("");
+  const [error, setError] = useState<string | undefined>();
+  const [added, setAdded] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function add() {
+    setError(undefined);
+    const course = courseRating === "" ? undefined : Number(courseRating);
+    const trainer = trainerRating === "" ? undefined : Number(trainerRating);
+    if (course === undefined && trainer === undefined) {
+      setError("Enter at least one rating.");
+      return;
+    }
+    if ((course !== undefined && (course < 0 || course > 5)) || (trainer !== undefined && (trainer < 0 || trainer > 5))) {
+      setError("Ratings must be between 0 and 5.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await createFeedbackResponseForCandidateAction(projectId, workshopId, formId, candidateUserId, course, trainer);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setAdded(true);
+    });
+  }
+
+  if (added) {
+    return (
+      <li className="flex items-center gap-3 px-4 py-2 text-xs text-emerald-600">
+        {candidateName} — rating added
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 px-4 py-2">
+      <span className="min-w-32 text-sm text-slate-700">{candidateName}</span>
+      <label className="flex items-center gap-1 text-xs text-slate-500">
+        Course rating
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={courseRating}
+          onChange={(e) => setCourseRating(e.target.value)}
+          className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-600"
+        />
+        /5
+      </label>
+      <label className="flex items-center gap-1 text-xs text-slate-500">
+        Trainer rating
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={trainerRating}
+          onChange={(e) => setTrainerRating(e.target.value)}
+          className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-600"
+        />
+        /5
+      </label>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={add}
+        className="rounded-md border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+      >
+        {pending ? "Adding…" : "Add rating"}
+      </button>
+      {error && <span className="text-xs text-red-600">{error}</span>}
+    </li>
   );
 }
