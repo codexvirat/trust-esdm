@@ -52,3 +52,20 @@ export async function listResponsesForForm(projectId: string, formId: string) {
 export async function getOwnResponse(candidateUserId: string, formId: string) {
   return FeedbackResponse.findOne({ candidateUserId, feedbackFormId: formId });
 }
+
+/** Staff-side override — see setResponseRatingSchema for why this exists alongside submitFeedback. */
+export async function setResponseRating(
+  projectId: string,
+  workshopId: string,
+  formId: string,
+  responseId: string,
+  updates: { courseRating?: number; trainerRating?: number },
+) {
+  const response = await FeedbackResponse.findOneAndUpdate(
+    { _id: responseId, projectId, workshopId, feedbackFormId: formId },
+    { $set: updates },
+    { new: true },
+  );
+  if (!response) throw ApiError.notFound("Feedback response not found");
+  return response;
+}

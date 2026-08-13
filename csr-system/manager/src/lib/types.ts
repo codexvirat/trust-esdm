@@ -307,7 +307,8 @@ export interface FeedbackForm {
 export interface FeedbackResponse {
   _id: string;
   feedbackFormId: string;
-  candidateUserId: string;
+  // listResponsesForForm populates this with { _id, fullName, email }; getOwnResponse leaves it a bare id.
+  candidateUserId: string | { _id: string; fullName: string; email: string };
   courseRating?: number;
   trainerRating?: number;
   comments?: string;

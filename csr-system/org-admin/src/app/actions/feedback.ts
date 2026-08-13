@@ -58,3 +58,27 @@ export async function setFeedbackEnabledAction(workshopId: string, formId: strin
   await apiFetch(`/workshops/${workshopId}/feedback-forms/${formId}/enabled`, { method: "PATCH", accessToken, body: { isEnabled } });
   revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
 }
+
+/** Staff override for a response missing courseRating/trainerRating (e.g. submitted before the candidate form collected them). */
+export async function setFeedbackResponseRatingAction(
+  workshopId: string,
+  formId: string,
+  responseId: string,
+  courseRating: number | undefined,
+  trainerRating: number | undefined,
+): Promise<ActionResult> {
+  const { accessToken } = await requireOrgAdminRole();
+
+  try {
+    await apiFetch(`/workshops/${workshopId}/feedback-forms/${formId}/responses/${responseId}/rating`, {
+      method: "PATCH",
+      accessToken,
+      body: { courseRating, trainerRating },
+    });
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Failed to update rating." };
+  }
+
+  revalidatePath(`/dashboard/workshops/${workshopId}/feedback`);
+  return {};
+}

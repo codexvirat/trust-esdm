@@ -3,7 +3,13 @@ import * as controller from "../controllers/feedbackForm.controller";
 import { requireAuth, requirePermission } from "../middleware/auth";
 import { requireTrainerAssignedToWorkshop } from "../middleware/trainerScope";
 import { validate } from "../middleware/validate";
-import { createFeedbackFormSchema, updateFeedbackFormSchema, setFeedbackEnabledSchema, submitFeedbackSchema } from "../validators/feedback.validators";
+import {
+  createFeedbackFormSchema,
+  updateFeedbackFormSchema,
+  setFeedbackEnabledSchema,
+  submitFeedbackSchema,
+  setResponseRatingSchema,
+} from "../validators/feedback.validators";
 import { PERMISSIONS } from "../types/permissions";
 
 // mergeParams so :workshopId from the parent /workshops/:workshopId mount is visible here.
@@ -33,3 +39,9 @@ feedbackFormRouter.get(
   controller.listResponses,
 );
 feedbackFormRouter.get("/:formId/responses/mine", requirePermission(PERMISSIONS.FEEDBACK_SUBMIT), controller.getOwnResponse);
+feedbackFormRouter.patch(
+  "/:formId/responses/:responseId/rating",
+  requirePermission(PERMISSIONS.FEEDBACK_MANAGE),
+  validate(setResponseRatingSchema),
+  controller.setResponseRating,
+);

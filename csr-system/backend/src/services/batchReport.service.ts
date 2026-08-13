@@ -98,6 +98,17 @@ function joinAddress(parts: (string | null | undefined)[]): string | null {
   return filtered.length ? filtered.join(", ") : null;
 }
 
+/**
+ * True once a candidate has either formally passed an assessment, or has a certificate on record
+ * at all — a certificate implies course completion even when the workshop has no assessment
+ * configured, in which case assessmentStatus is stuck at "not_started" (no assessment ever ran to
+ * move it to "passed"). Shared by the Summary "Assessments passed" count and the per-candidate
+ * "Assessment" label in the PDF so both treat this case the same way.
+ */
+export function isAssessmentEffectivelyComplete(row: { assessmentStatus: string; certificateStatus: "issued" | "draft" | "none" }): boolean {
+  return row.assessmentStatus === "passed" || row.certificateStatus === "issued" || row.certificateStatus === "draft";
+}
+
 interface PopulatedVenue {
   name: string;
   city?: string;
@@ -301,7 +312,7 @@ export async function getBatchReportData(projectId: string, workshopId: string, 
       totalEnrolled: enrollments.length,
       averageAttendancePercent: average(enrollments.map((e) => e.attendancePercent)) ?? 0,
       certifiedCount: certificates.filter((c) => c.status === "issued").length,
-      passedCount: enrollments.filter((e) => e.assessmentStatus === "passed").length,
+      passedCount: candidateRows.filter(isAssessmentEffectivelyComplete).length,
       averageCourseRating: average(candidateRows.map((r) => r.courseRating).filter((v): v is number => v !== null)),
       averageTrainerRating: average(candidateRows.map((r) => r.trainerRating).filter((v): v is number => v !== null)),
     },

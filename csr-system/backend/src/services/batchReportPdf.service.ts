@@ -3,13 +3,14 @@ import path from "node:path";
 import sharp from "sharp";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { resolveUploadsPath } from "../middleware/upload";
-import type {
-  BatchReportData,
-  BatchReportCandidateRow,
-  BatchReportOrganisationRow,
-  BatchReportSessionRow,
-  BatchReportTrainerRow,
-  SessionAttendanceStatus,
+import {
+  isAssessmentEffectivelyComplete,
+  type BatchReportData,
+  type BatchReportCandidateRow,
+  type BatchReportOrganisationRow,
+  type BatchReportSessionRow,
+  type BatchReportTrainerRow,
+  type SessionAttendanceStatus,
 } from "./batchReport.service";
 
 const PAGE_WIDTH = 595.28; // A4 portrait, points
@@ -260,7 +261,7 @@ function formatAssessment(row: BatchReportCandidateRow): string {
   // A certificate implies the candidate completed the course even if no assessment gate ever ran for
   // this workshop (certificate.service.ts skips the assessment requirement when none is configured),
   // which otherwise leaves assessmentStatus stuck at "not_started" despite the candidate being done.
-  if (row.assessmentStatus === "not_started" && (row.certificateStatus === "issued" || row.certificateStatus === "draft")) {
+  if (row.assessmentStatus === "not_started" && isAssessmentEffectivelyComplete(row)) {
     return "Complete";
   }
   const label = row.assessmentStatus === "not_started" ? "Not started" : row.assessmentStatus[0]!.toUpperCase() + row.assessmentStatus.slice(1);

@@ -67,3 +67,17 @@ export const submitFeedbackSchema = z.object({
     comments: z.string().optional(),
   }),
 });
+
+// Staff-side override for a response that's missing courseRating/trainerRating — e.g. one
+// submitted before the candidate form collected them, where the candidate can't resubmit
+// (submitFeedback rejects a second response for the same form).
+export const setResponseRatingSchema = z.object({
+  body: z
+    .object({
+      courseRating: z.number().min(0).max(5).optional(),
+      trainerRating: z.number().min(0).max(5).optional(),
+    })
+    .refine((b) => b.courseRating !== undefined || b.trainerRating !== undefined, {
+      message: "Provide at least one of courseRating or trainerRating",
+    }),
+});

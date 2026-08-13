@@ -67,3 +67,15 @@ export const getOwnResponse = asyncHandler(async (req: Request, res: Response) =
   if (!req.user) throw ApiError.unauthorized();
   res.json(await responseService.getOwnResponse(req.user.userId, req.params.formId as string));
 });
+
+export const setResponseRating = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) throw ApiError.unauthorized();
+  const response = await responseService.setResponseRating(
+    resolveProjectId(req),
+    req.params.workshopId as string,
+    req.params.formId as string,
+    req.params.responseId as string,
+    req.body,
+  );
+  res.json(response);
+});

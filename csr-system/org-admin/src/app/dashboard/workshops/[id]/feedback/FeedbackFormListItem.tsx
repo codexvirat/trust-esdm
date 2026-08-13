@@ -1,15 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setFeedbackEnabledAction } from "@/app/actions/feedback";
+import { setFeedbackEnabledAction, setFeedbackResponseRatingAction } from "@/app/actions/feedback";
 import type { FeedbackForm, FeedbackResponse } from "@/lib/types";
 import { FeedbackFormPreview } from "./FeedbackFormPreview";
 import { EditFeedbackForm } from "./EditFeedbackForm";
 
+function candidateLabel(candidateUserId: FeedbackResponse["candidateUserId"]): string {
+  return typeof candidateUserId === "string" ? candidateUserId : candidateUserId.fullName;
+}
+
 export function FeedbackFormListItem({ workshopId, form, responses }: { workshopId: string; form: FeedbackForm; responses: FeedbackResponse[] }) {
   const [pending, startTransition] = useTransition();
-  const [view, setView] = useState<"none" | "preview" | "edit">("none");
+  const [view, setView] = useState<"none" | "preview" | "edit" | "ratings">("none");
 
+  const missingRatingCount = responses.filter((r) => r.courseRating == null || r.trainerRating == null).length;
   const avgCourseRating =
     responses.length > 0
       ? (responses.reduce((sum, r) => sum + (r.courseRating ?? 0), 0) / responses.filter((r) => r.courseRating != null).length || 0).toFixed(1)
@@ -26,6 +31,15 @@ export function FeedbackFormListItem({ workshopId, form, responses }: { workshop
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {missingRatingCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setView((v) => (v === "ratings" ? "none" : "ratings"))}
+              className="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
+            >
+              {view === "ratings" ? "Hide ratings" : `Fix missing ratings (${missingRatingCount})`}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setView((v) => (v === "preview" ? "none" : "preview"))}
@@ -77,6 +91,96 @@ export function FeedbackFormListItem({ workshopId, form, responses }: { workshop
           <EditFeedbackForm workshopId={workshopId} form={form} onDone={() => setView("none")} />
         </>
       )}
+      {view === "ratings" && (
+        <div className="mt-3 rounded-lg border border-slate-200">
+          <p className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            Only for responses submitted before rating collection existed — enter the candidate's actual course/trainer rating if you already have it
+            (e.g. collected offline). This doesn't touch their other answers.
+          </p>
+          <ul className="divide-y divide-slate-100">
+            {responses.map((r) => (
+              <ResponseRatingRow key={r._id} workshopId={workshopId} formId={form._id} response={r} />
+            ))}
+          </ul>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function ResponseRatingRow({ workshopId, formId, response }: { workshopId: string; formId: string; response: FeedbackResponse }) {
+  const [courseRating, setCourseRating] = useState(response.courseRating?.toString() ?? "");
+  const [trainerRating, setTrainerRating] = useState(response.trainerRating?.toString() ?? "");
+  const [error, setError] = useState<string | undefined>();
+  const [saved, setSaved] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function save() {
+    setError(undefined);
+    setSaved(false);
+    const course = courseRating === "" ? undefined : Number(courseRating);
+    const trainer = trainerRating === "" ? undefined : Number(trainerRating);
+    if (course === undefined && trainer === undefined) {
+      setError("Enter at least one rating.");
+      return;
+    }
+    if ((course !== undefined && (course < 0 || course > 5)) || (trainer !== undefined && (trainer < 0 || trainer > 5))) {
+      setError("Ratings must be between 0 and 5.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await setFeedbackResponseRatingAction(workshopId, formId, response._id, course, trainer);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setSaved(true);
+    });
+  }
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 px-3 py-2">
+      <span className="min-w-32 text-sm text-slate-700">{candidateLabel(response.candidateUserId)}</span>
+      <label className="flex items-center gap-1 text-xs text-slate-500">
+        Course
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={courseRating}
+          onChange={(e) => {
+            setCourseRating(e.target.value);
+            setSaved(false);
+          }}
+          className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-600"
+        />
+      </label>
+      <label className="flex items-center gap-1 text-xs text-slate-500">
+        Trainer
+        <input
+          type="number"
+          min={0}
+          max={5}
+          step={1}
+          value={trainerRating}
+          onChange={(e) => {
+            setTrainerRating(e.target.value);
+            setSaved(false);
+          }}
+          className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm outline-none focus:border-teal-600"
+        />
+      </label>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={save}
+        className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+      >
+        {pending ? "Saving…" : "Save"}
+      </button>
+      {saved && !pending && <span className="text-xs text-emerald-600">Saved</span>}
+      {error && <span className="text-xs text-red-600">{error}</span>}
     </li>
   );
 }
