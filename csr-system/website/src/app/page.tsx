@@ -101,13 +101,12 @@ export default async function HomePage() {
         {/* THE DAY */}
         <section className="section" id="day">
           <div className="wrap">
-            <div className="eyebrow">ENABLE · the program</div>
-            <h2 className="title">One day. Three sessions.</h2>
-            <p className="lead">Each cohort of 80–100 participants spends one full day together — leadership in the morning, quality and compliance at midday, and infrastructure, schemes and finance in the afternoon.</p>
+            <div className="eyebrow">THE PROGRAM</div>
+            <h2 className="title">One day.</h2>
+            <p className="lead">Each cohort of 80–100 participants spends one full day together — covering leadership, quality and compliance, and infrastructure, schemes and finance.</p>
 
             <div className="day-grid">
               <div className="slot">
-                <span className="when">Morning</span>
                 <h3>Leadership &amp; business enablement</h3>
                 <ul>
                   <li>Scaling mindset and growth planning</li>
@@ -116,7 +115,6 @@ export default async function HomePage() {
                 </ul>
               </div>
               <div className="slot">
-                <span className="when">Midday</span>
                 <h3>Compliance, quality &amp; reliability</h3>
                 <ul>
                   <li>Standards and certification pathways</li>
@@ -125,7 +123,6 @@ export default async function HomePage() {
                 </ul>
               </div>
               <div className="slot">
-                <span className="when">Afternoon</span>
                 <h3>Infrastructure, schemes &amp; finance</h3>
                 <ul>
                   <li>Testing infrastructure</li>
@@ -229,7 +226,7 @@ export default async function HomePage() {
               </details>
               <details className="faq-item">
                 <summary className="faq-q">How long is the program? <span className="plus">+</span></summary>
-                <div className="faq-a"><p>Each cohort is one full day, with three sessions — morning, midday and afternoon — plus a lab or cleanroom walkthrough. Around 80–100 participants join each cohort.</p></div>
+                <div className="faq-a"><p>Each cohort is one full day, plus a lab or cleanroom walkthrough. Around 80–100 participants join each cohort.</p></div>
               </details>
               <details className="faq-item">
                 <summary className="faq-q">Where will it happen? <span className="plus">+</span></summary>
