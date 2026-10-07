@@ -2,7 +2,6 @@
 
 import { useActionState, useState } from "react";
 import { submitEnrollAction, type EnrollFormState } from "@/app/actions/enroll";
-import { useEnrollTrack } from "./EnrollTrackContext";
 import type { PublicOrganisation } from "@/lib/types";
 
 const initialState: EnrollFormState = {};
@@ -26,9 +25,8 @@ const GENDERS = [
   { value: "prefer_not_to_say", label: "Prefer not to say" },
 ];
 
-export function EnrollForm({ tracks, organisations }: { tracks: { key: string; id: string; label: string }[]; organisations: PublicOrganisation[] }) {
+export function EnrollForm({ workshopId, organisations }: { workshopId: string; organisations: PublicOrganisation[] }) {
   const [state, action, pending] = useActionState(submitEnrollAction, initialState);
-  const { selectedTrack, setSelectedTrack } = useEnrollTrack();
   const [organisationId, setOrganisationId] = useState("");
   const companyListed = organisationId !== "";
 
@@ -37,13 +35,14 @@ export function EnrollForm({ tracks, organisations }: { tracks: { key: string; i
       <div className="success show">
         <div className="tick">✓</div>
         <h3 style={{ fontSize: "1.4rem" }}>Thanks — you&apos;re on the list.</h3>
-        <p style={{ color: "var(--ink-soft)" }}>The DRIIV team will reach out to guide your next steps.</p>
+        <p style={{ color: "var(--ink-soft)" }}>The TRUST-ESDM team will contact you with the cohort date for your state.</p>
       </div>
     );
   }
 
   return (
     <form action={action}>
+      <input type="hidden" name="workshopId" value={workshopId} />
       {state.error && <div className="form-error show" style={{ marginBottom: 20 }}>{state.error}</div>}
 
       <div className="form-section">
@@ -93,16 +92,6 @@ export function EnrollForm({ tracks, organisations }: { tracks: { key: string; i
                 <option key={g.value} value={g.value}>{g.label}</option>
               ))}
             </select>
-          </div>
-          <div className="field">
-            <label htmlFor="track">Which track interests you? <span className="required-mark">*</span></label>
-            <select id="track" value={selectedTrack} onChange={(e) => setSelectedTrack(e.target.value)} required>
-              <option value="">Choose one</option>
-              {tracks.map((t) => (
-                <option key={t.key} value={t.key}>{t.label}</option>
-              ))}
-            </select>
-            <input type="hidden" name="workshopId" value={tracks.find((t) => t.key === selectedTrack)?.id ?? ""} />
           </div>
         </div>
       </div>
@@ -282,7 +271,7 @@ export function EnrollForm({ tracks, organisations }: { tracks: { key: string; i
 
       <div className="submit-row">
         <button type="submit" className="btn btn-primary" disabled={pending}>{pending ? "Submitting…" : "Submit my interest"}</button>
-        <span className="form-note">No cost to apply. We&apos;ll respond within a few working days.</span>
+        <span className="form-note">Zero fee for eligible MSMEs. Our team will get back to you.</span>
       </div>
     </form>
   );

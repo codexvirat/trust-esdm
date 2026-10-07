@@ -7,14 +7,16 @@ export function CertificateSection() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="section-tight">
-      <div className="wrap" style={{ maxWidth: 900 }}>
-        <div className="eyebrow">What you&apos;ll receive</div>
-        <h2 style={{ fontSize: "2rem" }}>A certificate that means something.</h2>
-        <p className="lead" style={{ maxWidth: "none" }}>Every participant who completes their track receives a joint certificate of completion from DRIIV and OPPO India, verifiable online via QR code.</p>
-        <div style={{ textAlign: "center", marginTop: 20 }}>
-          <button type="button" className="btn btn-ghost" onClick={() => setOpen(true)}>View sample certificate</button>
-        </div>
+    <>
+      <div className="cert">
+        <svg viewBox="0 0 44 44" aria-hidden="true">
+          <rect x="3" y="3" width="38" height="38" rx="8" fill="none" stroke="#B8722F" strokeWidth="2.5" />
+          <path d="M12 12h8v8h-8zM24 12h8v8h-8zM12 24h8v8h-8z" fill="none" stroke="#12332A" strokeWidth="2" />
+          <rect x="26" y="26" width="4" height="4" fill="#B8722F" />
+          <rect x="32" y="26" width="2" height="6" fill="#B8722F" />
+        </svg>
+        <p><b>Every participant receives a joint certificate</b> from DRIIV and OPPO India, verifiable online by QR code.</p>
+        <button type="button" className="btn btn-ghost cert-btn" onClick={() => setOpen(true)}>View sample</button>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} wide ariaLabel="sample certificate">
@@ -23,6 +25,6 @@ export function CertificateSection() {
           <img src="/assets/certificate.jpeg" alt="Sample DRIIV & OPPO India certificate of completion" className="cert-img" />
         </div>
       </Modal>
-    </section>
+    </>
   );
 }

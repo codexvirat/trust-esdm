@@ -23,7 +23,7 @@ export async function submitEnrollAction(_prevState: EnrollFormState, formData: 
   const bloodGroup = str(formData, "bloodGroup");
   const gender = str(formData, "gender");
 
-  if (!workshopId) return { error: "Please choose which track interests you." };
+  if (!workshopId) return { error: "Enrollment is not open right now. Please call us instead." };
   if (!firstName || !lastName) return { error: "First name and last name are required." };
   if (!email) return { error: "Please enter a valid email address." };
   if (!phone || phone.replace(/\D/g, "").length < 6) return { error: "Please enter a valid phone number." };

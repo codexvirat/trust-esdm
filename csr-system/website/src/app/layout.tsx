@@ -21,7 +21,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TRUST-ESDM — Build Product your customers can trust",
+  title: "TRUST-ESDM — A national capacity building program for MSMEs",
   icons: { icon: "/favicon.svg" },
 };
 

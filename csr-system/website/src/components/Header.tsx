@@ -46,14 +46,13 @@ export function Header({ marqueeItems }: { marqueeItems: MarqueeItem[] }) {
           </svg>
         </button>
         <div className={`navlinks${navOpen ? " open" : ""}`}>
-          <Link href="/#about" onClick={() => setNavOpen(false)}>About</Link>
-          <Link href="/#program" onClick={() => setNavOpen(false)}>The program</Link>
-          <Link href="/#tracks" onClick={() => setNavOpen(false)}>Certification Tracks</Link>
-          <Link href="/#journey" onClick={() => setNavOpen(false)}>How it works</Link>
-          <Link href="/#goals" onClick={() => setNavOpen(false)}>Impact</Link>
+          <Link href="/#initiative" onClick={() => setNavOpen(false)}>About</Link>
+          <Link href="/#day" onClick={() => setNavOpen(false)}>The day</Link>
+          <Link href="/#rollout" onClick={() => setNavOpen(false)}>Rollout</Link>
+          <Link href="/#partners" onClick={() => setNavOpen(false)}>Partners</Link>
           <Link href="/#faq" onClick={() => setNavOpen(false)}>Questions</Link>
           <a href={`${CANDIDATE_PORTAL_URL}/login`} className="btn btn-ghost" onClick={() => setNavOpen(false)}>Login</a>
-          <Link href="/#enroll" className="btn btn-primary" onClick={() => setNavOpen(false)}>Enroll now</Link>
+          <Link href="/#enroll" className="btn btn-primary" onClick={() => setNavOpen(false)}>Enroll / Partner</Link>
         </div>
       </nav>
 
