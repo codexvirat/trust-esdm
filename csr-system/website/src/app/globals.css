@@ -300,7 +300,9 @@ footer small { display: block; margin-top: 24px; color: rgba(255,255,255,.5); fo
 .footer-links a:hover { color: var(--signal); text-decoration: underline; }
 .footer-logos { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin: 28px 0; }
 .footer-logo-esdm { height: 48px; width: auto; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); }
-.footer-logo-driiv { height: 48px; width: auto; border-radius: 8px; border: 1px solid rgba(255,255,255,.15); }
+.footer-logo-box { background: #fff; border-radius: 8px; padding: 6px 10px; display: inline-flex; align-items: center; }
+.footer-logo-box img { height: 56px; width: auto; display: block; }
+.footer-logo-seal { height: 68px; width: 68px; border-radius: 50%; background: #fff; padding: 3px; }
 .footer-logo-oppo-box { background: #fff; border-radius: 8px; padding: 8px 14px; display: inline-flex; align-items: center; }
 .footer-logo-oppo-box img { height: 24px; width: auto; display: block; }
 

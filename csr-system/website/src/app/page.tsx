@@ -260,8 +260,12 @@ export default async function HomePage() {
             <p style={{ maxWidth: "38ch", color: "rgba(255,255,255,.72)", marginTop: 10 }}>Trusted &amp; Reliable Upgradation for MSMEs.</p>
             <div className="footer-logos">
               <BrandMark className="footer-logo-esdm" />
+              <div className="footer-logo-box">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/psa-logo.png" alt="Office of the Principal Scientific Adviser to the Government of India" />
+              </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="footer-logo-driiv" src="/assets/driiv.png" alt="DRIIV" />
+              <img className="footer-logo-seal" src="/assets/driiv-logo.png" alt="DRIIV — Delhi Research Implementation and Innovation" />
               <div className="footer-logo-oppo-box">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/assets/oppo-logo.png" alt="OPPO India" />
