@@ -7,12 +7,15 @@ export function Modal({
   open,
   onClose,
   wide,
+  flush,
   ariaLabel,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   wide?: boolean;
+  /** No inner padding — for a full-bleed image popup. */
+  flush?: boolean;
   ariaLabel: string;
   children: ReactNode;
 }) {
@@ -32,7 +35,7 @@ export function Modal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={`modal-box${wide ? " modal-box-wide" : ""}`}>
+      <div className={`modal-box${wide ? " modal-box-wide" : ""}${flush ? " modal-box-flush" : ""}`}>
         <button type="button" className="modal-close" onClick={onClose} aria-label={`Close ${ariaLabel}`}>
           &times;
         </button>

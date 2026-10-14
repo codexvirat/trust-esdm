@@ -4,7 +4,7 @@ import { PROJECT_SLUG } from "@/lib/constants";
 import type { MarqueeItem, PublicOrganisation, PublicWorkshop } from "@/lib/types";
 import { Header } from "@/components/Header";
 import { BrandMark } from "@/components/BrandMark";
-import { BatchStatusModal } from "@/components/BatchStatusModal";
+import { EventPopupModal } from "@/components/EventPopupModal";
 import { CertificateSection } from "@/components/CertificateSection";
 import { EnrollForm } from "@/components/EnrollForm";
 
@@ -194,7 +194,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <BatchStatusModal />
+        <EventPopupModal />
 
         {/* ENROLL */}
         <section className="section" id="enroll" style={{ background: "var(--paper-2)" }}>

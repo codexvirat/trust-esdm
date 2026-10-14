@@ -218,25 +218,11 @@ h2.title { font-size: clamp(1.6rem, 3vw, 2.1rem); line-height: 1.15; }
 .modal-close:hover { background: var(--line); }
 .modal-box-wide { max-width: 820px; }
 
-/* batch status modal */
-.batch-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 24px; }
-.batch-card {
-  background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 20px;
-  display: block; text-decoration: none; cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-}
-.batch-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(18,51,42,.12); border-color: var(--copper); }
-.batch-tag {
-  display: inline-block; font-family: var(--font-ibm-plex-mono), monospace; font-size: .7rem; text-transform: uppercase;
-  letter-spacing: .05em; padding: 4px 10px; border-radius: 999px; font-weight: 600; margin-bottom: 10px;
-}
-.batch-completed .batch-tag { background: #DCEFE3; color: var(--trace-deep); }
-.batch-ongoing .batch-tag { background: #FCEFD2; color: #8A5B12; }
-.batch-upcoming .batch-tag { background: #F3E3D3; color: var(--copper); }
-.batch-card h4 { font-family: var(--font-space-grotesk), sans-serif; color: var(--trace-deep); font-size: 1.05rem; margin: 0 0 8px; }
-@media (max-width: 640px) {
-  .batch-grid { grid-template-columns: 1fr; }
-}
+/* event popup modal */
+.modal-box.modal-box-flush { padding: 0; max-width: 960px; overflow: hidden; }
+.modal-box-flush .modal-close { background: rgba(255,255,255,.9); }
+.event-popup-banner { display: block; width: 100%; height: auto; }
+.event-popup-actions { display: flex; justify-content: center; padding: 20px 24px 24px; }
 
 /* certificate modal */
 .cert-frame {
