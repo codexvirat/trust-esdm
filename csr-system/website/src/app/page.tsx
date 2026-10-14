@@ -209,6 +209,7 @@ export default async function HomePage() {
           <div className="wrap" style={{ textAlign: "center", marginTop: 28 }}>
             <p style={{ color: "var(--ink-soft)", margin: 0 }}>
               Prefer to talk? Call <a href="tel:+916388408804" style={{ fontWeight: 600, color: "var(--trace-deep)" }}>+91 63884 08804</a>
+              {" "}or <a href="tel:+918957536462" style={{ fontWeight: 600, color: "var(--trace-deep)" }}>+91 89575 36462</a>
             </p>
           </div>
         </section>
